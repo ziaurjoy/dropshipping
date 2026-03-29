@@ -263,7 +263,6 @@ class GoogleLoginApiView(views.APIView):
             # Make a request to fetch the user's profile information
             profile_endpoint = "https://www.googleapis.com/oauth2/v1/userinfo"
             headers = {"Authorization": f"Bearer {access_token}"}
-            # headers = {'Authorization': f'Bearer ya29.a0ARW5m75Jxnwp99ivmiFkmJNDIB_I-y1C7gaQt8wgy3mbiuBkjf-So2b9RtR9yef3ZQ7WufIyLEQm_uYEdnSrYncHm2vXxFMIKVOC-h3Rs632iNMsQJULD4blvSfaU_up0QR_bREYOzFOSnAgTwSaFZY5mSqfXLPNntM7aCgYKAVISARESFQHGX2MioVYb96ALC_PXPGDdAQ3LDA0171'}
             profile_response = requests.get(profile_endpoint, headers=headers)
 
             if profile_response.status_code == 200:
