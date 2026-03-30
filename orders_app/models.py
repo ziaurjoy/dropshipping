@@ -67,7 +67,7 @@ class Order(models.Model):
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_charge = models.DecimalField(max_digits=12, decimal_places=2)
     total = models.DecimalField(max_digits=12, decimal_places=2)
-    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True)
+    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders_coupon')
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -99,7 +99,12 @@ class Payment(models.Model):
         ('bkash', 'bKash'), ('nagad', 'Nagad'), ('rocket', 'Rocket'),
         ('card', 'Card'), ('cod', 'Cash on Delivery')
     ]
-    STATUS_CHOICES = ['pending', 'success', 'failed', 'refunded']
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
@@ -150,7 +155,12 @@ class Shipment(models.Model):
 
 class SupportTicket(models.Model):
     """Customer support requests tied to an order."""
-    STATUS_CHOICES = ['open', 'in_progress', 'resolved', 'closed']
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
 
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -11,6 +11,14 @@ from mptt.models import MPTTModel, TreeForeignKey
 
 User = get_user_model()
 
+
+BANNER_PLACEMENT_CHOICES = [
+    ('homepage', 'Homepage'),
+    ('category', 'Category'),
+    ('flash', 'Flash Sale'),
+]
+
+
 # ====================== CATEGORY (Self-referencing MPTT tree) ======================
 class Category(MPTTModel):
     parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
@@ -19,6 +27,8 @@ class Category(MPTTModel):
     icon = models.ImageField(upload_to='categories/icons/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class MPTTMeta:
         order_insertion_by = ['sort_order', 'name']
@@ -48,6 +58,7 @@ class Product(models.Model):
     markup_percent = models.DecimalField(max_digits=6, decimal_places=2, default=30.00)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -73,6 +84,8 @@ class ProductVariant(models.Model):
     stock_quantity = models.PositiveIntegerField(default=0)
     selling_price = models.DecimalField(max_digits=12, decimal_places=2)
     weight_grams = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['sku']
@@ -87,10 +100,12 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to='products/')
     alt_text = models.CharField(max_length=255, null=True, blank=True)
     is_primary = models.BooleanField(default=False)
-    sort_order = models.PositiveSmallIntegerField(default=0)
+    # sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        ordering = ['sort_order']
+    # class Meta:
+    #     ordering = ['sort_order']
 
     def __str__(self):
         return f"Image for {self.product.name}"
@@ -102,6 +117,8 @@ class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     added_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('user', 'product')
@@ -119,6 +136,7 @@ class Review(models.Model):
     body = models.TextField(blank=True)
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -139,6 +157,8 @@ class SupplierProduct(models.Model):
     min_order_qty = models.PositiveIntegerField(default=1)
     lead_days = models.PositiveSmallIntegerField(default=7)
     last_synced = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.supplier_name} - {self.supplier_sku}"
@@ -153,12 +173,14 @@ class Banner(models.Model):
     link_url = models.URLField(null=True, blank=True)
     placement = models.CharField(
         max_length=50,
-        choices=[('homepage', 'Homepage'), ('category', 'Category'), ('flash', 'Flash')]
+        choices=BANNER_PLACEMENT_CHOICES
     )
     sort_order = models.PositiveSmallIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['sort_order']

@@ -18,11 +18,11 @@ class Cart(models.Model):
     )
     session_key = models.CharField(max_length=255, null=True, blank=True)
     coupon = models.ForeignKey(
-        'orders.Coupon',  # string reference → orders app not created yet
+        'orders_app.Coupon',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='carts',
+        related_name='carts_coupon',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

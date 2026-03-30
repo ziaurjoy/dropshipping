@@ -7,21 +7,53 @@ from .models import (
 )
 
 
+# class CategorySerializer(serializers.ModelSerializer):
+#     children = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Category
+#         fields = ['id', 'name', 'slug', 'icon', 'is_active', 'sort_order', 'children']
+
+#     def get_children(self, obj):
+#         return CategorySerializer(obj.get_children(), many=True).data
+
 class CategorySerializer(serializers.ModelSerializer):
+    # Allow write of uploaded file for create/update
+    icon = serializers.ImageField(required=False, allow_null=True)
+    # Return an absolute full URL for responses
     children = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'icon', 'is_active', 'sort_order', 'children']
+        fields = [
+            'id', 'name', 'slug', 'icon', 'is_active',
+            'sort_order', 'parent', 'children'
+        ]
+        read_only_fields = ['id', 'slug', 'children']
+
+    def get_icon(self, obj):
+        """Always return full URL with domain"""
+        if obj.icon:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.icon.url)
+            return obj.icon.url
+        return None
 
     def get_children(self, obj):
-        return CategorySerializer(obj.get_children(), many=True).data
+        """Important: pass context so child icons also get full URL"""
+        serializer = CategorySerializer(
+            obj.get_children(),
+            many=True,
+            context=self.context
+        )
+        return serializer.data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'alt_text', 'is_primary', 'sort_order']
+        fields = '__all__'
 
 class DynamicAttributeField(serializers.JSONField):
     """Custom field that accepts any key-value dict"""
@@ -90,6 +122,17 @@ class BannerSerializer(serializers.ModelSerializer):
         ]
 
 
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = [
+            'name','category', 'slug', 'description', 'source_url',
+            'source_platform', 'base_cost', 'markup_percent',
+            'is_active', 'created_at'
+        ]
+
+
+
 # ── DETAILED PRODUCT SERIALIZER (used for /products/<slug>/) ──
 class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
@@ -100,30 +143,27 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = [
-            'id', 'name', 'slug', 'description', 'source_url',
-            'source_platform', 'base_cost', 'markup_percent',
-            'is_active', 'created_at',
-            'category', 'images', 'variants',
-            'supplier_products', 'reviews'
-        ]
+        # fields = [
+        #     'id', 'name', 'slug', 'description', 'source_url',
+        #     'source_platform', 'base_cost', 'markup_percent',
+        #     'is_active', 'created_at',
+        #     'category', 'images', 'variants',
+        #     'supplier_products', 'reviews'
+        # ]
+
+        depth = 1
+        fields = '__all__'  # Include all fields, including related ones
 
 
 # ── LIST SERIALIZER (lighter for catalog listing) ──
 class ProductListSerializer(serializers.ModelSerializer):
-    primary_image = serializers.SerializerMethodField()
     min_price = serializers.SerializerMethodField()
+    images = ProductImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
-        fields = [
-            'id', 'name', 'slug', 'primary_image',
-            'min_price', 'is_active', 'created_at'
-        ]
-
-    def get_primary_image(self, obj):
-        img = obj.images.filter(is_primary=True).first()
-        return img.image.url if img else None
+        fields = '__all__'
+        depth = 1
 
     def get_min_price(self, obj):
         variant = obj.variants.order_by('selling_price').first()
