@@ -41,6 +41,8 @@ urlpatterns = [
 
 ]
 
+router.register(r'delivery-addresses', views.DeliveryAddressViewSet, basename='deliveryaddress')
+
 
 
 urlpatterns += router.urls

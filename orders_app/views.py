@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
 from cart_app.models import Cart
+from users_app.models import DeliveryAddress
 from .models import Order, OrderItem, Address, Payment, Shipment, Coupon, ShippingZone, SupportTicket
 from .serializers import (
     OrderSerializer, OrderItemSerializer, AddressSerializer,
@@ -32,12 +33,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
         address_id = request.data.get('address_id')
-        address = get_object_or_404(Address, id=address_id, user=request.user)
+        shipping_charge = request.data.get('shipping_charge')
+        print("Received address_id:", address_id)  # Debugging line
+        address = get_object_or_404(DeliveryAddress, id=address_id, user=request.user)
 
         # Calculate totals
-        subtotal = sum(item.line_total for item in cart.items.all())
-        shipping_charge = Decimal('60.00')   # TODO: calculate from ShippingZone later
-        total = subtotal + shipping_charge
+        subtotal = sum(item.total_price for item in cart.items.all())
+        total = subtotal + Decimal(str(shipping_charge))
 
         # Create Order
         order = Order.objects.create(
@@ -46,20 +48,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             subtotal=subtotal,
             shipping_charge=shipping_charge,
             total=total,
-            coupon=cart.coupon
+            # coupon=cart.coupon
         )
 
         # Create OrderItems
         for cart_item in cart.items.all():
-            variant = cart_item.variant
+            product = cart_item.product
             OrderItem.objects.create(
                 order=order,
-                variant=variant,
-                product_name=variant.product.name,
-                sku=variant.sku,
-                unit_price=variant.selling_price,
+                # variant=variant,
+                product_name=product.name,
+                # sku=product.sku,
+                unit_price=product.price,
                 quantity=cart_item.quantity,
-                line_total=variant.selling_price * cart_item.quantity
+                line_total=product.price * cart_item.quantity
             )
 
         # Create initial Payment (COD by default)
@@ -74,7 +76,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         Shipment.objects.create(order=order)
 
         # Clear cart
-        cart.items.all().delete()
+        # cart.items.all().delete()
 
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

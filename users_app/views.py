@@ -329,3 +329,28 @@ class GoogleLoginApiView(views.APIView):
             status.HTTP_400_BAD_REQUEST,
         )
 
+
+class DeliveryAddressViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.DeliveryAddressSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Only return addresses belonging to the current user
+        return models.DeliveryAddress.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        # Automatically assign the current user when creating
+        serializer.save(user=self.request.user)
+
+    # Optional: Custom action to set address as default
+    from rest_framework.decorators import action
+
+    @action(detail=True, methods=['post'])
+    def set_default(self, request, pk=None):
+        address = self.get_object()  # This already checks ownership via get_queryset
+        address.is_default = True
+        address.save()
+
+        return Response({
+            "message": "This address has been set as default successfully."
+        }, status=status.HTTP_200_OK)

@@ -237,4 +237,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 
+class DeliveryAddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = user_models.DeliveryAddress
+        fields = '__all__'
+        read_only_fields = ['user']
 

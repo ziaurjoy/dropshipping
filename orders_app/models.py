@@ -6,8 +6,9 @@ from django.db import models
 import uuid
 from django.db import models
 from django.contrib.auth import get_user_model
-from products_app.models import ProductVariant
+from products_app.models import Product, ProductVariant
 from cart_app.models import Cart  # for easy order creation
+from users_app.models import DeliveryAddress
 
 User = get_user_model()
 
@@ -61,7 +62,7 @@ class Order(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order_number = models.CharField(max_length=50, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
-    address = models.ForeignKey(Address, on_delete=models.PROTECT)
+    address = models.ForeignKey(DeliveryAddress, on_delete=models.PROTECT, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -82,7 +83,7 @@ class OrderItem(models.Model):
     """Snapshot of each product at purchase time."""
     id = models.AutoField(primary_key=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, blank=True, null=True)
     product_name = models.CharField(max_length=300)
     sku = models.CharField(max_length=100)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
