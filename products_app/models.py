@@ -54,7 +54,8 @@ class Product(models.Model):
     description = models.TextField(blank=True)
     source_url = models.URLField(null=True, blank=True)
     source_platform = models.CharField(max_length=50, blank=True)  # e.g. '1688', 'Alibaba'
-    base_cost = models.DecimalField(max_digits=12, decimal_places=2, default=30.00)
+    base_cost = models.DecimalField(max_digits=12, decimal_places=2, default=00.00)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=00.00)
     markup_percent = models.DecimalField(max_digits=6, decimal_places=2, default=30.00)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)

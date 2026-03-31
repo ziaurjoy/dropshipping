@@ -1,37 +1,35 @@
+
+
 from rest_framework import serializers
-from .models import Cart, CartItem
-from products_app.serializers import ProductVariantSerializer
+from products_app.models import Product
+from .models import CartItem, Cart
+
+# If you don't have ProductMinimalSerializer yet, add this simple one:
+class ProductMinimalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ["id", "name", "price"]  # add image, etc. if you want
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    variant = ProductVariantSerializer(read_only=True)
-    line_total = serializers.SerializerMethodField()
+    product = ProductMinimalSerializer(read_only=True)
+    total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'variant', 'quantity', 'line_total']
+        fields = ["id", "product", "quantity", "total_price", "added_at"]
 
-    def get_line_total(self, obj):
-        return obj.line_total
+    def get_total_price(self, obj):
+        return obj.total_price
 
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
-    subtotal = serializers.SerializerMethodField()
-    total = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Cart
-        fields = [
-            'id', 'user', 'session_key', 'coupon',
-            'items', 'subtotal', 'total', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ["id", "items", "total_price", "created_at", "updated_at"]
 
-    def get_subtotal(self, obj):
-        return sum(item.line_total for item in obj.items.all())
-
-    def get_total(self, obj):
-        subtotal = self.get_subtotal(obj)
-        # Coupon discount will be calculated in view later
-        return subtotal
+    def get_total_price(self, obj):
+        return obj.total_price

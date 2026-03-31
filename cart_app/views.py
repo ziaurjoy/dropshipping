@@ -1,78 +1,67 @@
-from django.shortcuts import render
 
-# Create your views here.
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
+from products_app.models import Product
 
 
-class CartViewSet(viewsets.ModelViewSet):
-    serializer_class = CartSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+class CartView(APIView):
 
-    def get_queryset(self):
-        if self.request.user.is_authenticated:
-            return Cart.objects.filter(user=self.request.user)
-        session_key = self.request.session.session_key
-        if not session_key:
-            self.request.session.create()
-            session_key = self.request.session.session_key
-        return Cart.objects.filter(session_key=session_key)
+    permission_classes = [IsAuthenticated]
 
-    def get_object(self):
-        cart = self.get_queryset().first()
-        if not cart:
-            # Create new cart automatically
-            if self.request.user.is_authenticated:
-                cart = Cart.objects.create(user=self.request.user)
-            else:
-                cart = Cart.objects.create(session_key=self.request.session.session_key)
+    def get_or_create_cart(self, user):
+        cart, _ = Cart.objects.get_or_create(user=user)
         return cart
 
-    @action(detail=False, methods=['get'])
-    def my_cart(self, request):
-        """GET /api/cart/my_cart/ → returns current user's/guest's cart"""
-        cart = self.get_object()
-        serializer = self.get_serializer(cart)
+    # GET /api/cart/ → View full cart
+    def get(self, request):
+        cart = self.get_or_create_cart(request.user)
+        serializer = CartSerializer(cart)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'])
-    def add_item(self, request):
-        """POST /api/cart/add_item/ with {variant_id, quantity}"""
-        variant_id = request.data.get('variant_id')
-        quantity = int(request.data.get('quantity', 1))
+    def post(self, request):
+        cart = self.get_or_create_cart(request.user)
+        items_data = request.data
 
-        variant = get_object_or_404('products.ProductVariant', id=variant_id)
-        cart = self.get_object()
+        # Support single item or list
+        if isinstance(items_data, dict):
+            items_data = [items_data]
 
-        item, created = CartItem.objects.get_or_create(cart=cart, variant=variant)
-        if not created:
-            item.quantity += quantity
-        else:
-            item.quantity = quantity
-        item.save()
+        results = []
+        for item_data in items_data:
+            product_id = item_data.get("product_id")
+            quantity = int(item_data.get("quantity", 1))
 
-        serializer = CartSerializer(cart)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            if not product_id or quantity < 1:
+                continue
 
-    @action(detail=False, methods=['post'])
-    def remove_item(self, request):
-        """POST /api/cart/remove_item/ with {item_id}"""
-        item_id = request.data.get('item_id')
-        CartItem.objects.filter(id=item_id, cart=self.get_object()).delete()
-        return Response({'status': 'removed'}, status=status.HTTP_200_OK)
+            product = get_object_or_404(Product, id=product_id)
 
+            # Add or increase quantity
+            cart_item, created = CartItem.objects.get_or_create(
+                cart=cart,
+                product=product,
+                defaults={"quantity": quantity}
+            )
+            if not created:
+                cart_item.quantity = quantity          # merge quantities
+                cart_item.save()
 
-class CartItemViewSet(viewsets.ModelViewSet):
-    queryset = CartItem.objects.all()
-    serializer_class = CartItemSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+            results.append(cart_item)
 
-    def get_queryset(self):
-        cart = self.request.query_params.get('cart')
-        if cart:
-            return CartItem.objects.filter(cart_id=cart)
-        return super().get_queryset()
+        serializer = CartItemSerializer(results, many=True)
+        return Response({
+            "message": "Items added to cart successfully",
+            "added_items": serializer.data,
+            "cart_total": cart.total_price
+        }, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        cart = self.get_or_create_cart(request.user)
+        cart.items.all().delete()
+        return Response({"message": "Cart cleared"}, status=status.HTTP_200_OK)
+
