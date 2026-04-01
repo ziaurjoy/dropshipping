@@ -107,9 +107,11 @@ class PaymentViewSet(viewsets.ModelViewSet):
         return Payment.objects.filter(order__user=self.request.user)
 
 
-class ShippingZoneViewSet(viewsets.ReadOnlyModelViewSet):
+# class ShippingZoneViewSet(viewsets.ReadOnlyModelViewSet):
+class ShippingZoneViewSet(viewsets.ModelViewSet):
     queryset = ShippingZone.objects.all()
     serializer_class = ShippingZoneSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
 class ShipmentViewSet(viewsets.ModelViewSet):

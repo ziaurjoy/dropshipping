@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from products_app.models import Product, ProductVariant
 from cart_app.models import Cart  # for easy order creation
 from users_app.models import DeliveryAddress
+from . import utils
 
 User = get_user_model()
 
@@ -78,6 +79,11 @@ class Order(models.Model):
     def __str__(self):
         return self.order_number
 
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = utils.generate_order_number(self)
+        super().save(*args, **kwargs)
+
 
 class OrderItem(models.Model):
     """Snapshot of each product at purchase time."""
@@ -89,6 +95,8 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField()
     line_total = models.DecimalField(max_digits=12, decimal_places=2)
+
+
 
     def __str__(self):
         return f"{self.quantity} × {self.sku}"
@@ -155,7 +163,9 @@ class Shipment(models.Model):
 
 
 class SupportTicket(models.Model):
+
     """Customer support requests tied to an order."""
+
     STATUS_CHOICES = [
         ('open', 'Open'),
         ('in_progress', 'In Progress'),
@@ -169,6 +179,7 @@ class SupportTicket(models.Model):
     subject = models.CharField(max_length=255)
     message = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
