@@ -50,10 +50,19 @@ class ShippingZoneSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# class ShipmentSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Shipment
+#         fields = '__all__'
+
+
 class ShipmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shipment
-        fields = '__all__'
+        fields = [
+            'id', 'order', 'carrier', 'tracking_number','tracking_url', 'estimated_delivery', 'status', 'shipped_at'
+            ]
+        read_only_fields = ['id', 'tracking_number', 'tracking_url', 'estimated_delivery', 'shipped_at']
 
 
 class SupportTicketSerializer(serializers.ModelSerializer):

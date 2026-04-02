@@ -9,6 +9,9 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import rest_framework.permissions
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+
+from products_app.permissions import IsReadOnlyForRegularUsers, RBACPermission
+from products_app.permissions import IsReadOnlyForRegularUsers
 from .models import (
     Category, Product, ProductVariant, ProductImage,
     Wishlist, Review, SupplierProduct, Banner
@@ -26,7 +29,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     lookup_field = 'slug'
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RBACPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
@@ -45,13 +49,16 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RBACPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     queryset = Product.objects.prefetch_related('images', 'variants', 'supplier_products', 'reviews').select_related('category')
     filterset_class = ProductFilter
     search_fields = ['name', 'description']
     ordering_fields = ['created_at', 'variants__selling_price']
     lookup_field = 'slug'
+
+
 
     def get_serializer_class(self):
         if self.action == 'list':

@@ -5,6 +5,7 @@ from django.db import models
 
 import uuid
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from products_app.models import Product, ProductVariant
 from cart_app.models import Cart  # for easy order creation
@@ -144,8 +145,14 @@ class ShippingZone(models.Model):
 class Shipment(models.Model):
     """Tracks physical shipment via SkyShip or 3PL."""
     STATUS_CHOICES = [
-        ('pending', 'Pending'), ('picked', 'Picked'), ('in_transit', 'In Transit'),
-        ('out_for_delivery', 'Out for Delivery'), ('delivered', 'Delivered'), ('returned', 'Returned')
+        # ('pending', 'Pending'),
+        # ('picked', 'Picked'),
+        # ('in_transit', 'In Transit'),
+
+        ('delivering', 'Delivering'),
+        ('delivered', 'Delivered'),
+        ('returned', 'Returned'),
+        ('out_for_delivery', 'Out for Delivery')
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -156,10 +163,30 @@ class Shipment(models.Model):
     shipped_at = models.DateTimeField(null=True, blank=True)
     estimated_delivery = models.DateField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending', db_index=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='delivering', db_index=True)
 
     def __str__(self):
         return f"Shipment for {self.order.order_number}"
+
+    def save(self, *args, **kwargs):
+        # Auto-generate tracking info only on first creation
+        if not self.tracking_number:
+            self.tracking_number = utils.generate_tracking_number(self)
+            self.tracking_url = utils.generate_tracking_url(self)
+
+        # Auto set estimated_delivery (e.g., 7 days from now)
+        if not self.estimated_delivery:
+            self.estimated_delivery = timezone.now().date() + timezone.timedelta(days=7)
+
+        # Auto set shipped_at
+        if self.status in ['delivering', 'out_for_delivery'] and not self.shipped_at:
+            self.shipped_at = timezone.now()
+
+        # Auto set delivered_at
+        if self.status == 'delivered' and not self.delivered_at:
+            self.delivered_at = timezone.now()
+
+        super().save(*args, **kwargs)
 
 
 class SupportTicket(models.Model):

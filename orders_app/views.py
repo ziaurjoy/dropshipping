@@ -114,13 +114,48 @@ class ShippingZoneViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
+# class ShipmentViewSet(viewsets.ModelViewSet):
+#     serializer_class = ShipmentSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def get_queryset(self):
+#         return Shipment.objects.filter(order__user=self.request.user)
+
+
 class ShipmentViewSet(viewsets.ModelViewSet):
+    queryset = Shipment.objects.all()
     serializer_class = ShipmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Shipment.objects.filter(order__user=self.request.user)
+    def create(self, request, *args, **kwargs):
+        order_id = request.data.get('order_id')
+        carrier = request.data.get('carrier')
 
+        if not order_id:
+            return Response({"error": "order_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not carrier:
+            return Response({"error": "carrier is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if order exists
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if shipment already exists for this order
+        if hasattr(order, 'shipment'):
+            return Response({"error": "Shipment already exists for this order"},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        # Create shipment - only order and carrier from user, rest auto-generated
+        shipment = Shipment.objects.create(
+            order=order,
+            carrier=carrier.strip()
+        )
+
+        serializer = ShipmentSerializer(shipment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
