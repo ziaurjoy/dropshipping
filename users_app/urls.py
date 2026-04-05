@@ -42,6 +42,7 @@ urlpatterns = [
 ]
 
 router.register(r'delivery-addresses', views.DeliveryAddressViewSet, basename='deliveryaddress')
+router.register(r'integration-credentials', views.IntegrationCredentialViewSet, basename='integrationcredential')
 
 
 

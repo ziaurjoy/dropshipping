@@ -243,3 +243,10 @@ class DeliveryAddressSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user']
 
+
+
+class IntegrationCredentialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = user_models.IntegrationCredential
+        fields = '__all__'
+        read_only_fields = ['user']

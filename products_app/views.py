@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404
 
 from products_app.permissions import IsReadOnlyForRegularUsers, RBACPermission
 from products_app.permissions import IsReadOnlyForRegularUsers
+from products_app.services import get_products_details_from_fastapi, get_products_from_fastapi
 from .models import (
     Category, Product, ProductVariant, ProductImage,
     Wishlist, Review, SupplierProduct, Banner
@@ -114,6 +115,30 @@ class ProductViewSet(viewsets.ModelViewSet):
         product = self.get_object()
         Wishlist.objects.get_or_create(user=request.user, product=product)
         return Response({'status': 'added to wishlist'}, status=status.HTTP_201_CREATED)
+
+
+
+class ProductFrom1688ViewSet(viewsets.ViewSet):
+    """
+    A simple ViewSet for listing or retrieving users.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request):
+        data = get_products_from_fastapi(
+            page=int(request.query_params.get('page', 0)),
+            limit=int(request.query_params.get('limit', 20)),
+            category=request.query_params.get('category'),
+            search=request.query_params.get('search'),
+            request=request
+        )
+        return Response(data)
+
+    def retrieve(self, request, pk=None):
+        print('Retrieving product details for ID:', pk)
+        data = get_products_details_from_fastapi(product_id=pk, request=request)
+        return Response(data)
+
 
 
 # ====================== PRODUCT VARIANT VIEWSET (NEW) ======================

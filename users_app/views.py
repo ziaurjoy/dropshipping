@@ -10,8 +10,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets, permissions, generics, views
 
+from products_app.permissions import RBACPermission
 
 
+
+from users_app.models import IntegrationCredential
 from . import utils
 from . import serializers
 from . import models
@@ -354,3 +357,78 @@ class DeliveryAddressViewSet(viewsets.ModelViewSet):
         return Response({
             "message": "This address has been set as default successfully."
         }, status=status.HTTP_200_OK)
+
+
+
+
+class IntegrationCredentialViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = serializers.IntegrationCredentialSerializer
+
+    def get_object(self):
+        """Get existing credential or None"""
+        try:
+            return IntegrationCredential.objects.get(user=self.request.user)
+        except IntegrationCredential.DoesNotExist:
+            return None
+
+    def list(self, request):
+        """GET - Show current credentials"""
+        credential = self.get_object()
+        if credential:
+            serializer = self.serializer_class(credential)
+            return Response(serializer.data)
+        return Response({"message": "No integration credentials found"}, status=404)
+
+    def create(self, request):
+        """POST - Create if not exists, else Update"""
+        serializer = self.serializer_class(data=request.data)
+
+        if serializer.is_valid():
+            credential = self.get_object()
+
+            if credential:
+                # Update existing
+                credential.api_key = serializer.validated_data['api_key']
+                credential.api_secret = serializer.validated_data['api_secret']
+                credential.save()
+                message = "Integration credentials updated successfully"
+            else:
+                # Create new
+                credential = IntegrationCredential.objects.create(
+                    user=request.user,
+                    api_key=serializer.validated_data['api_key'],
+                    api_secret=serializer.validated_data['api_secret']
+                )
+                message = "Integration credentials created successfully"
+
+            result_serializer = self.serializer_class(credential)
+            return Response({
+                "message": message,
+                "data": result_serializer.data
+            }, status=status.HTTP_200_OK if credential.pk else status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, pk=None):
+        """PUT - Same as create (Create or Update)"""
+        return self.create(request)
+
+    def partial_update(self, request, pk=None):
+        """PATCH - Partial Update"""
+        credential = self.get_object()
+        if not credential:
+            return Response({"error": "No credentials found to update"}, status=404)
+
+        serializer = self.serializer_class(credential, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "Credentials updated successfully",
+                "data": serializer.data
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve(self, request, pk=None):
+        """GET single (same as list since only one per user)"""
+        return self.list(request)

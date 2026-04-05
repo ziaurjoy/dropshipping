@@ -133,3 +133,12 @@ class DeliveryAddress(models.Model):
             DeliveryAddress.objects.filter(user=self.user, is_default=True).exclude(pk=self.pk).update(is_default=False)
         super().save(*args, **kwargs)
 
+
+
+class IntegrationCredential(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="integration_credentials")
+    # platform = models.CharField(max_length=50, choices=choose.PLATFORM_CHOICES)
+    api_key = models.CharField(max_length=255)
+    api_secret = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
