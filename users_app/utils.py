@@ -37,6 +37,7 @@ def error_message(serializer):
 def generate_otp(length=int(os.environ.get('OTP_LENGHT'))):
     characters = string.digits
     otp = ''.join(random.choice(characters) for _ in range(length))
+    print(f"Generated OTP: {otp}")  # Debugging statement
     return otp
 
 

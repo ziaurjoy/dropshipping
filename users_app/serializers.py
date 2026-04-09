@@ -106,8 +106,8 @@ class OTPVerifySerializer(serializers.Serializer):
         #         (Q(email=otp_identifier) | Q(phone=otp_identifier)) & Q(otp=otp)
         #     ).first()
         get_otp_verify = user_models.OTPVerify.objects.filter(
-                (Q(email=otp_identifier) | Q) & Q(otp=otp)
-            ).first()
+            (Q(email=otp_identifier) | Q(phone=otp_identifier)) & Q(otp=otp)
+        ).first()
 
         if get_otp_verify:
             # Check if OTP has expired

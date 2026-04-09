@@ -99,7 +99,7 @@ class OTPVerify(models.Model):
     user=models.OneToOneField(User, on_delete=models.PROTECT)
     email = models.EmailField(unique=True, null=True, blank=True)
     phone = models.CharField(max_length=15, unique=True, null=True, blank=True)
-    otp = models.CharField(max_length=4)
+    otp = models.CharField(max_length=6)
     is_verify = models.BooleanField(default=False)
     expired = models.DateTimeField()
     otp_type = models.CharField(max_length=20, choices=choose.OTP_TYPE, default='Registration')
