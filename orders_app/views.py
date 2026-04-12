@@ -10,9 +10,9 @@ from django.shortcuts import get_object_or_404
 from decimal import Decimal
 from cart_app.models import Cart
 from users_app.models import DeliveryAddress
-from .models import Order, OrderItem, Address, Payment, Shipment, Coupon, ShippingZone, SupportTicket
+from .models import Order, OrderItem, Payment, Shipment, Coupon, ShippingZone, SupportTicket
 from .serializers import (
-    OrderSerializer, OrderItemSerializer, AddressSerializer,
+    OrderSerializer, OrderItemSerializer,
     PaymentSerializer, ShippingZoneSerializer, ShipmentSerializer,
     SupportTicketSerializer, CouponSerializer
 )
@@ -40,6 +40,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Calculate totals
         subtotal = sum(item.total_price for item in cart.items.all())
         total = subtotal + Decimal(str(shipping_charge))
+
+        for item in cart.items.all():
+            print(f"CartItem: {item.product_id}, Quantity: {item.quantity}, Total Price: {item.total_price}")
+
+        return Response({"subtotal": subtotal, "total": total}, status=status.HTTP_200_OK)
 
         # Create Order
         order = Order.objects.create(
@@ -82,15 +87,15 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class AddressViewSet(viewsets.ModelViewSet):
-    serializer_class = AddressSerializer
-    permission_classes = [permissions.IsAuthenticated]
+# class AddressViewSet(viewsets.ModelViewSet):
+#     serializer_class = AddressSerializer
+#     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Address.objects.filter(user=self.request.user)
+#     def get_queryset(self):
+#         return Address.objects.filter(user=self.request.user)
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+#     def perform_create(self, serializer):
+#         serializer.save(user=self.request.user)
 
 
 # Other simple read/write ViewSets

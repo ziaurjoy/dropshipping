@@ -345,9 +345,6 @@ class DeliveryAddressViewSet(viewsets.ModelViewSet):
         # Automatically assign the current user when creating
         serializer.save(user=self.request.user)
 
-    # Optional: Custom action to set address as default
-    from rest_framework.decorators import action
-
     @action(detail=True, methods=['post'])
     def set_default(self, request, pk=None):
         address = self.get_object()  # This already checks ownership via get_queryset

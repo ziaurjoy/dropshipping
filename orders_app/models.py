@@ -15,21 +15,21 @@ from . import utils
 User = get_user_model()
 
 
-class Address(models.Model):
-    """Address model (referenced by Order)."""
-    id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
-    full_name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=20)
-    address_line1 = models.CharField(max_length=255)
-    address_line2 = models.CharField(max_length=255, blank=True)
-    city = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)   # for ShippingZone matching
-    postal_code = models.CharField(max_length=20, blank=True)
-    is_default = models.BooleanField(default=False)
+# class Address(models.Model):
+#     """Address model (referenced by Order)."""
+#     id = models.AutoField(primary_key=True)
+#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
+#     full_name = models.CharField(max_length=255)
+#     phone = models.CharField(max_length=20)
+#     address_line1 = models.CharField(max_length=255)
+#     address_line2 = models.CharField(max_length=255, blank=True)
+#     city = models.CharField(max_length=100)
+#     district = models.CharField(max_length=100)   # for ShippingZone matching
+#     postal_code = models.CharField(max_length=20, blank=True)
+#     is_default = models.BooleanField(default=False)
 
-    def __str__(self):
-        return f"{self.full_name} - {self.city}"
+#     def __str__(self):
+#         return f"{self.full_name} - {self.city}"
 
 
 class Coupon(models.Model):

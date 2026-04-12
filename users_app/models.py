@@ -83,6 +83,11 @@ class Profile(models.Model):
     gender = models.CharField(max_length=10, choices=choose.GENDER_CHOICES, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    postal_code = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
 
 
     # Dropshipping-specific
@@ -116,10 +121,10 @@ class DeliveryAddress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="delivery_addresses", blank=True, null=True)
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20)
-    address_line1 = models.CharField(max_length=255)
+    address = models.CharField(max_length=255)
     address_line2 = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)
+    district = models.CharField(max_length=100, blank=True, null=True)
     postal_code = models.CharField(max_length=20, blank=True, null=True)
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

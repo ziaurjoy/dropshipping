@@ -35,7 +35,7 @@ urlpatterns = [
     ),
     path("reset-password/", views.ResetPasswordView.as_view(), name="reset-password"),
     path(
-        "profile-update/", views.ProfileUpdateApiView.as_view(), name="reset-password"
+        "profile/", views.ProfileUpdateApiView.as_view(), name="reset-password"
     ),
     path("google/login/", views.GoogleLoginApiView.as_view(), name="google-login"),
 

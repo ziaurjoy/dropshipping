@@ -1,15 +1,16 @@
 from rest_framework import serializers
+from products_app.models import ProductImage
 from .models import (
-    Address, Coupon, Order, OrderItem, Payment,
+     Coupon, Order, OrderItem, Payment,
     ShippingZone, Shipment, SupportTicket
 )
 from products_app.serializers import ProductVariantSerializer
+from users_app.serializers import DeliveryAddressSerializer
 
-
-class AddressSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Address
-        fields = '__all__'
+# class AddressSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Address
+#         fields = '__all__'
 
 
 class CouponSerializer(serializers.ModelSerializer):
@@ -23,10 +24,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'product_name', 'sku', 'unit_price', 'quantity', 'line_total']
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        print('=========', ProductImage.objects.filter(product=instance.product, is_primary=True))
+        image = ProductImage.objects.filter(product=instance.product, is_primary=True).first()
+        representation['image_url'] = image.url if image else None
+
+        return representation
+
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
-    address = AddressSerializer(read_only=True)
+    address = DeliveryAddressSerializer(read_only=True)
 
     class Meta:
         model = Order
