@@ -90,12 +90,12 @@ class OrderItem(models.Model):
     """Snapshot of each product at purchase time."""
     id = models.AutoField(primary_key=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, blank=True, null=True)
-    product_name = models.CharField(max_length=300)
-    sku = models.CharField(max_length=100)
+    product = models.JSONField(blank=True, null=True)  # Store product details as JSON for immutability
+    # product_name = models.CharField(max_length=300)
+    # sku = models.CharField(max_length=100)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField()
-    line_total = models.DecimalField(max_digits=12, decimal_places=2)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
 
 
 

@@ -2,7 +2,8 @@ from django.shortcuts import render
 
 # Create your views here.
 
-
+import re
+from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -28,63 +29,145 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def place_order(self, request):
         """POST /api/orders/place_order/ → converts current cart to order"""
+
         cart = Cart.objects.filter(user=request.user).first()
         if not cart or not cart.items.exists():
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
         address_id = request.data.get('address_id')
         shipping_charge = request.data.get('shipping_charge')
-        print("Received address_id:", address_id)  # Debugging line
+
+        if not address_id or shipping_charge is None:
+            return Response({"error": "address_id and shipping_charge are required"},
+                          status=status.HTTP_400_BAD_REQUEST)
+
         address = get_object_or_404(DeliveryAddress, id=address_id, user=request.user)
 
-        # Calculate totals
-        subtotal = sum(item.total_price for item in cart.items.all())
-        total = subtotal + Decimal(str(shipping_charge))
+        try:
+            with transaction.atomic():   # ← This is the key part
+                # Calculate totals
+                subtotal = sum(item.total_price for item in cart.items.all())
+                total = subtotal + float(shipping_charge)
 
-        for item in cart.items.all():
-            print(f"CartItem: {item.product_id}, Quantity: {item.quantity}, Total Price: {item.total_price}")
+                # Create Order
+                order = Order.objects.create(
+                    user=request.user,
+                    address=address,
+                    subtotal=subtotal,
+                    shipping_charge=float(shipping_charge),
+                    total=total,
+                    # coupon=cart.coupon
+                )
 
-        return Response({"subtotal": subtotal, "total": total}, status=status.HTTP_200_OK)
+                # Create OrderItems
+                for cart_item in cart.items.all():
+                    product = cart_item.product  # assuming this is a dict or JSONField
+                    variant = cart_item.variant
 
-        # Create Order
-        order = Order.objects.create(
-            user=request.user,
-            address=address,
-            subtotal=subtotal,
-            shipping_charge=shipping_charge,
-            total=total,
-            # coupon=cart.coupon
-        )
+                    product['variant'] = variant  # Add variant details to product snapshot
 
-        # Create OrderItems
-        for cart_item in cart.items.all():
-            product = cart_item.product
-            OrderItem.objects.create(
-                order=order,
-                # variant=variant,
-                product_name=product.name,
-                # sku=product.sku,
-                unit_price=product.price,
-                quantity=cart_item.quantity,
-                line_total=product.price * cart_item.quantity
-            )
+                    # Extract price safely
+                    price_str = str(variant.get("price", "0") if isinstance(variant, dict) else "0")
+                    match = re.search(r"([\d.]+)", price_str)
+                    amount = float(match.group(1)) if match else 0.0
 
-        # Create initial Payment (COD by default)
-        Payment.objects.create(
-            order=order,
-            method='cod',
-            amount=total,
-            status='pending'
-        )
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,          # Be careful: if product is dict, make sure field accepts it
+                        unit_price=amount,
+                        quantity=cart_item.quantity,
+                        total=amount * cart_item.quantity
+                    )
 
-        # Create Shipment record
-        Shipment.objects.create(order=order)
+                # Create initial Payment (COD by default)
+                Payment.objects.create(
+                    order=order,
+                    method='cod',
+                    amount=total,
+                    status='pending'
+                )
 
-        # Clear cart
-        # cart.items.all().delete()
+                # Create Shipment record
+                Shipment.objects.create(order=order)
 
+                # # Clear cart (only if everything above succeeded)
+                # cart.items.all().delete()
+
+                # Optionally delete cart itself if it's now empty
+                cart.delete()
+
+        except Exception as e:
+            # Log the error in production
+            # logger.error(f"Order placement failed: {str(e)}")
+            return Response({
+                "message": "Failed to place order. Please try again.",
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # If we reach here, transaction was successful
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # @action(detail=False, methods=['post'])
+    # def place_order(self, request):
+    #     """POST /api/orders/place_order/ → converts current cart to order"""
+    #     cart = Cart.objects.filter(user=request.user).first()
+    #     if not cart or not cart.items.exists():
+    #         return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     address_id = request.data.get('address_id')
+    #     shipping_charge = request.data.get('shipping_charge')
+    #     address = get_object_or_404(DeliveryAddress, id=address_id, user=request.user)
+
+    #     # Calculate totals
+    #     subtotal = sum(item.total_price for item in cart.items.all())
+    #     total = subtotal + float(shipping_charge)
+
+    #     # Create Order
+    #     order = Order.objects.create(
+    #         user=request.user,
+    #         address=address,
+    #         subtotal=subtotal,
+    #         shipping_charge=shipping_charge,
+    #         total=total,
+    #         # coupon=cart.coupon
+    #     )
+
+
+    #     # Create OrderItems
+    #     for cart_item in cart.items.all():
+    #         product = cart_item.product
+    #         product["variant"] = cart_item.variant
+    #         price_str = cart_item.variant.get("price", "0")
+
+    #         match = re.search(r"([\d.]+)", price_str)
+    #         amount = float(match.group(1)) if match else 0
+
+    #         OrderItem.objects.create(
+    #             order=order,
+    #             # variant=variant,
+    #             product=product,
+    #             # sku=product.sku,
+    #             unit_price=amount,
+    #             quantity=cart_item.quantity,
+    #             total=amount * cart_item.quantity
+    #         )
+
+    #     # Create initial Payment (COD by default)
+    #     Payment.objects.create(
+    #         order=order,
+    #         method='cod',
+    #         amount=total,
+    #         status='pending'
+    #     )
+
+    #     # Create Shipment record
+    #     Shipment.objects.create(order=order)
+
+    #     # Clear cart
+    #     cart.items.all().delete()
+
+    #     serializer = self.get_serializer(order)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 # class AddressViewSet(viewsets.ModelViewSet):

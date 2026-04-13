@@ -12,7 +12,7 @@ class ProductMinimalSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductMinimalSerializer(read_only=True)
+    # product = ProductMinimalSerializer(read_only=True)
     total_price = serializers.SerializerMethodField()
 
     class Meta:
@@ -20,6 +20,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = ["id", "product", "quantity", "total_price", "added_at"]
 
     def get_total_price(self, obj):
+
         return obj.total_price
 
 

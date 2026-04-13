@@ -22,15 +22,15 @@ class CouponSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
-        fields = ['id', 'product_name', 'sku', 'unit_price', 'quantity', 'line_total']
+        fields = ['id', 'product', 'unit_price', 'quantity', 'total']
 
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        print('=========', ProductImage.objects.filter(product=instance.product, is_primary=True))
-        image = ProductImage.objects.filter(product=instance.product, is_primary=True).first()
-        representation['image_url'] = image.url if image else None
+    # def to_representation(self, instance):
+    #     representation = super().to_representation(instance)
+    #     print('=========', ProductImage.objects.filter(product=instance.product, is_primary=True))
+    #     image = ProductImage.objects.filter(product=instance.product, is_primary=True).first()
+    #     representation['image_url'] = image.url if image else None
 
-        return representation
+    #     return representation
 
 
 class OrderSerializer(serializers.ModelSerializer):
