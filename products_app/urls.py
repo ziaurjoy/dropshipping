@@ -1,12 +1,14 @@
 
 
 from rest_framework.routers import DefaultRouter
-from .views import (BannerViewSet, CategoryViewSet, ProductFrom1688ViewSet, ProductImageViewSet,
-    ProductVariantViewSet, ProductViewSet, ReviewViewSet, SupplierProductViewSet, WishlistViewSet)
+from .views import (BannerViewSet, Categories1688ViewSet, CategoryViewSet, ProductFrom1688ViewSet,
+    ProductImageViewSet, ProductVariantViewSet, ProductViewSet, ReviewViewSet,
+    SupplierProductViewSet, WishlistViewSet)
 
 router = DefaultRouter()
 router.register(r'product', ProductViewSet, basename='product')
 router.register(r'product-from-1688', ProductFrom1688ViewSet, basename='product-from-1688')
+router.register(r'categories-from-1688', Categories1688ViewSet, basename='categories-from-1688')
 router.register(r'categories', CategoryViewSet, basename='category')
 
 router.register(r'variants', ProductVariantViewSet, basename='product-variant')

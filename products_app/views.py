@@ -12,7 +12,8 @@ from django.shortcuts import get_object_or_404
 
 from products_app.permissions import IsReadOnlyForRegularUsers, RBACPermission
 from products_app.permissions import IsReadOnlyForRegularUsers
-from products_app.services import get_products_details_from_fastapi, get_products_from_fastapi
+from products_app.services import (get_category_from_fastapi, get_products_details_from_fastapi,
+    get_products_from_fastapi)
 from .models import (
     Category, Product, ProductVariant, ProductImage,
     Wishlist, Review, SupplierProduct, Banner
@@ -230,3 +231,17 @@ class BannerViewSet(viewsets.ReadOnlyModelViewSet):
 class SupplierProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = SupplierProduct.objects.all()
     serializer_class = SupplierProductSerializer
+
+
+
+class Categories1688ViewSet(viewsets.ViewSet):
+    """
+    A simple ViewSet for listing or retrieving users.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request):
+        data = get_category_from_fastapi(
+            request=request
+        )
+        return Response(data)

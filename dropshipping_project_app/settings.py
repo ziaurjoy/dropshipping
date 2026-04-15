@@ -36,6 +36,26 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost 127.0.0.1 192.168.68.118' ).split()
 
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'app-key',
+    'secret-key',
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000," \
+    "http://127.0.0.1:3000"
+).split(",")
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -264,14 +284,7 @@ EMAIL_PORT = os.environ.get("EMAIL_PORT")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False") == "True"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000," \
-    "http://127.0.0.1:3000"
-).split(",")
 
-CORS_ALLOW_CREDENTIALS = True
 
 
 

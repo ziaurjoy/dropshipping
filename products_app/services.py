@@ -60,3 +60,23 @@ def get_products_details_from_fastapi(
         # Log error
         print(f"FastAPI Product Service Error: {e}")
         return {"products": [], "total": 0}
+
+
+def get_category_from_fastapi(request=None):
+    url = f"{domain}/categories/"
+
+    app_key = request.headers.get('app-key')
+    secret_key = request.headers.get('secret-key')
+
+    headers = {
+        "app-key": app_key,
+        "secret-key": secret_key,
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        return response.json()
+    except Exception as e:
+        # Log error
+        print(f"FastAPI Product Service Error: {e}")
+        return {"products": [], "total": 0}
