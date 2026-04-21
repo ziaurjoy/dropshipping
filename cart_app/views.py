@@ -12,6 +12,23 @@ from .serializers import CartSerializer, CartItemSerializer
 from products_app.models import Product
 
 
+def match_variant_sizes_with_quantity(variant, quantity):
+    sizes = variant.get("sizes", [])
+
+    result = []
+    for size in sizes:
+        size_name = size.get("size_name")
+
+        if size_name in quantity and quantity[size_name] > 0:
+            result.append({
+                "size_name": size_name,
+                "price": size.get("price"),
+                "stock": size.get("stock"),
+                "quantity": quantity[size_name]
+            })
+    return result
+
+
 class CartView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -38,9 +55,9 @@ class CartView(APIView):
 
         for item_data in items_data:
             product_id = item_data.get("product_id")
-            quantity = int(item_data.get("quantity", 1))
-            variant_name = item_data.get("variant", "")
-
+            quantity = item_data.get("quantity", 1)
+            variant = item_data.get("variant", "")
+            print('Received variant:', variant)
             if not product_id or not quantity:
                 continue
 
@@ -51,25 +68,23 @@ class CartView(APIView):
             details = _product.get("details", {})
             cart_data = details.get("extract_product_title_and_cart", {}).get("cart", {})
             skus = cart_data.get("skus", [])
-
-            variant = next((s for s in skus if s.get("size") == variant_name), {})
-
+            variant = match_variant_sizes_with_quantity(variant, quantity)
+            # variant = next((s for s in skus if s == variant.get('size')), {})
+            print('Found variant:', variant)
             # Remove heavy data
             product["product"].pop("details", None)
-
-            cart_item, created = CartItem.objects.get_or_create(
+            cart_item, created = CartItem.objects.update_or_create(
                 cart=_cart,
                 product_id=_product.get("_id"),
-                variant_key=variant.get("size"),
+                # variant_key=_product.get("size_name", ""),
                 defaults={
                     "product": product.get("product"),
                     "variant": variant,
                     "quantity": quantity
                 }
             )
-
             if not created:
-                cart_item.quantity += quantity
+                # cart_item.quantity += quantity
                 cart_item.save()
 
             results.append(cart_item)

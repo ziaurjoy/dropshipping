@@ -47,20 +47,46 @@ class Cart(models.Model):
 #         return total_amount
 
 
+def calculate_total(items):
+    total = 0
+    breakdown = []
+
+    for item in items:
+        price_str = item.get("price", "")
+        quantity = item.get("quantity", 0)
+
+        # Extract numeric value (remove currency symbol)
+        price = float(price_str.replace("¥", "").strip())
+
+        item_total = price * quantity
+        total += item_total
+
+        breakdown.append({
+            "size_name": item.get("size_name"),
+            "unit_price": price,
+            "quantity": quantity,
+            "total": item_total
+        })
+
+    return {
+        "items": breakdown,
+        "grand_total": total
+    }
+
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
 
     product_id = models.CharField(max_length=100, blank=True, null=True)
     product = models.JSONField(blank=True, null=True)
 
-    variant_key = models.CharField(max_length=100, blank=True, null=True)
+    # variant_key = models.CharField(max_length=100, blank=True, null=True)
     variant = models.JSONField(blank=True, null=True)
 
-    quantity = models.PositiveIntegerField(default=1)
+    quantity = models.JSONField(default=1)
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("cart", "product_id", "variant_key")
+        unique_together = ("cart", "product_id")
         ordering = ["-added_at"]
 
     def __str__(self):
@@ -74,9 +100,5 @@ class CartItem(models.Model):
         if isinstance(variant, list):
             variant = variant[0] if variant else {}
 
-        price_str = variant.get("price", "0")
-
-        match = re.search(r"([\d.]+)", price_str)
-        amount = float(match.group(1)) if match else 0
-
-        return amount * self.quantity
+        result = calculate_total(self.variant)
+        return result["grand_total"]
