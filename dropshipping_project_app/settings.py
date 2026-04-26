@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 'daisyui_dashboard', # on top of default django admin
 ]
 
 MIDDLEWARE = [

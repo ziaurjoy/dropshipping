@@ -1,10 +1,8 @@
 
 
 from rest_framework import serializers
-from .models import (
-    Category, Product, ProductVariant, ProductImage,
-    Wishlist, Review, SupplierProduct, Banner
-)
+from .models import (Banner, Category, Product, ProductImage, ProductVariant, Review,
+    SettingExchangeRate, SupplierProduct, Wishlist)
 
 
 # class CategorySerializer(serializers.ModelSerializer):
@@ -168,3 +166,10 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_min_price(self, obj):
         variant = obj.variants.order_by('selling_price').first()
         return variant.selling_price if variant else None
+
+
+
+class SettingExchangeRateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SettingExchangeRate
+        fields = '__all__'

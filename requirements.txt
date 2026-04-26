@@ -8,3 +8,4 @@ psycopg[binary]==3.3.3
 django-cors-headers==4.9.0
 Pillow==12.1.1
 django-mptt==0.18.0
+django-daisy==2.0.8

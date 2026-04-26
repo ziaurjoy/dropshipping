@@ -14,16 +14,11 @@ from products_app.permissions import IsReadOnlyForRegularUsers, RBACPermission
 from products_app.permissions import IsReadOnlyForRegularUsers
 from products_app.services import (get_category_from_fastapi, get_products_details_from_fastapi,
     get_products_from_fastapi)
-from .models import (
-    Category, Product, ProductVariant, ProductImage,
-    Wishlist, Review, SupplierProduct, Banner
-)
-from .serializers import (
-    CategorySerializer, ProductListSerializer, ProductDetailSerializer, ProductSerializer,
-    ProductVariantSerializer, ProductImageSerializer,
-    WishlistSerializer, ReviewSerializer,
-    SupplierProductSerializer, BannerSerializer
-)
+from .models import (Banner, Category, Product, ProductImage, ProductVariant, Review,
+    SettingExchangeRate, SupplierProduct, Wishlist)
+from .serializers import (BannerSerializer, CategorySerializer, ProductDetailSerializer,
+    ProductImageSerializer, ProductListSerializer, ProductSerializer, ProductVariantSerializer,
+    ReviewSerializer, SettingExchangeRateSerializer, SupplierProductSerializer, WishlistSerializer)
 from .filters import ProductFilter
 
 
@@ -129,6 +124,7 @@ def convert_currency_to_bdt(data: dict, cny_to_bdt_rate: float = 16.5) -> dict:
       - raw product dict   →  {"price": ..., "details": ...}
       - wrapped response   →  {"updated": True, "product": {...}}
     """
+    cny_to_bdt_rate = float(cny_to_bdt_rate)
     data = copy.deepcopy(data)
     USD_TO_BDT = 110.0
 
@@ -210,15 +206,18 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
             search=request.query_params.get('search'),
             request=request
         )
-        converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=0.77)
+
+        cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
+
+        converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
         return Response(converted)
 
 
     def retrieve(self, request, pk=None):
         print('Retrieving product details for ID:', pk)
         data = get_products_details_from_fastapi(product_id=pk, request=request)
-
-        converted = convert_currency_to_bdt(data, cny_to_bdt_rate=0.77)
+        cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
+        converted = convert_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
 
         return Response(converted)
 
@@ -327,3 +326,10 @@ class Categories1688ViewSet(viewsets.ViewSet):
             request=request
         )
         return Response(data)
+
+
+
+class SettingExchangeRateViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = SettingExchangeRate.objects.all().order_by('-created_at')
+    serializer_class = SettingExchangeRateSerializer
