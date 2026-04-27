@@ -97,10 +97,14 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField()
     total = models.DecimalField(max_digits=12, decimal_places=2)
 
-
-
     def __str__(self):
-        return f"{self.quantity} × {self.sku}"
+        return self.product.get('title', 'Unknown Product')
+
+
+
+
+    # def __str__(self):
+    #     return f"{self.quantity} × {self.sku}"
 
 
 class Payment(models.Model):
