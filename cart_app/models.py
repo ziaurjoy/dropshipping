@@ -56,7 +56,7 @@ def calculate_total(items):
         quantity = item.get("quantity", 0)
 
         # Extract numeric value (remove currency symbol)
-        price = float(price_str.replace("¥", "").strip())
+        price = float(price_str.replace("৳", "").strip())
 
         item_total = price * quantity
         total += item_total

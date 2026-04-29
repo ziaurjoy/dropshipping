@@ -1,3 +1,5 @@
+from cProfile import label
+
 from django.db import models
 
 # Create your models here.
@@ -131,6 +133,42 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.method} - {self.order.order_number}"
+
+
+
+
+class ShipmentSetting(models.Model):
+    class ShipmentMethod(models.TextChoices):
+        STANDARD = "standard", "Standard"
+        EXPRESS = "express", "Express"
+        SAME_DAY = "same_day", "Same Day"
+
+    label = models.CharField(max_length=100)
+    method = models.CharField(
+        max_length=20,
+        choices=ShipmentMethod.choices,
+        default=ShipmentMethod.STANDARD
+    )
+
+    price = models.PositiveIntegerField(default=0)  # Flat charge for this shipping method
+    # price = models.DecimalField(max_digits=10, decimal_places=2)
+    estimated_days_min = models.PositiveIntegerField()
+    estimated_days_max = models.PositiveIntegerField()
+
+    icon = models.ImageField(upload_to='shipment_icons/', blank=True, null=True)
+
+    is_active = models.BooleanField(default=True)
+    priority = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["priority"]
+
+    def __str__(self):
+        return f"{self.label} ({self.method})"
+
 
 
 class ShippingZone(models.Model):

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Coupon, Order, OrderItem, Payment, ShippingZone, Shipment, SupportTicket
+from .models import Coupon, Order, OrderItem, Payment, ShipmentSetting, ShippingZone, Shipment, SupportTicket
 
 
 # ─────────────────────────────────────────────
@@ -382,3 +382,13 @@ class SupportTicketAdmin(admin.ModelAdmin):
     def mark_closed(self, request, queryset):
         updated = queryset.exclude(status='closed').update(status='closed')
         self.message_user(request, f'{updated} ticket(s) closed.')
+
+
+
+
+@admin.register(ShipmentSetting)
+class ShipmentSettingAdmin(admin.ModelAdmin):
+    # list_display = ("label", "method", "price", "is_active", "priority")
+    list_display = ("label", "method", "is_active", "priority")
+    list_filter = ("method", "is_active")
+    ordering = ("priority",)

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from products_app.models import ProductImage
 from .models import (
-     Coupon, Order, OrderItem, Payment,
+     Coupon, Order, OrderItem, Payment, ShipmentSetting,
     ShippingZone, Shipment, SupportTicket
 )
 from products_app.serializers import ProductVariantSerializer
@@ -77,4 +77,9 @@ class ShipmentSerializer(serializers.ModelSerializer):
 class SupportTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportTicket
+        fields = '__all__'
+
+class ShippingMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShipmentSetting
         fields = '__all__'

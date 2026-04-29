@@ -11,12 +11,10 @@ from django.shortcuts import get_object_or_404
 from decimal import Decimal
 from cart_app.models import Cart
 from users_app.models import DeliveryAddress
-from .models import Order, OrderItem, Payment, Shipment, Coupon, ShippingZone, SupportTicket
-from .serializers import (
-    OrderSerializer, OrderItemSerializer,
-    PaymentSerializer, ShippingZoneSerializer, ShipmentSerializer,
-    SupportTicketSerializer, CouponSerializer
-)
+from .models import Order, OrderItem, Payment, Shipment, Coupon, ShipmentSetting, ShippingZone, SupportTicket
+from .serializers import (CouponSerializer, OrderItemSerializer, OrderSerializer,
+    PaymentSerializer, ShipmentSerializer, ShippingMethodSerializer, ShippingZoneSerializer,
+    SupportTicketSerializer)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -31,6 +29,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """POST /api/orders/place_order/ → converts current cart to order"""
 
         cart = Cart.objects.filter(user=request.user).first()
+        print('cart===', cart)
         if not cart or not cart.items.exists():
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -43,65 +42,70 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         address = get_object_or_404(DeliveryAddress, id=address_id, user=request.user)
 
-        try:
-            with transaction.atomic():   # ← This is the key part
+        # try:
+        #     with transaction.atomic():   # ← This is the key part
                 # Calculate totals
-                subtotal = sum(item.total_price for item in cart.items.all())
-                total = subtotal + float(shipping_charge)
+        subtotal = sum(item.total_price for item in cart.items.all())
+        total = subtotal + float(shipping_charge)
 
-                # Create Order
-                order = Order.objects.create(
-                    user=request.user,
-                    address=address,
-                    subtotal=subtotal,
-                    shipping_charge=float(shipping_charge),
-                    total=total,
-                    # coupon=cart.coupon
-                )
+        # Create Order
+        order = Order.objects.create(
+            user=request.user,
+            address=address,
+            subtotal=subtotal,
+            shipping_charge=float(shipping_charge),
+            total=total,
+            # coupon=cart.coupon
+        )
 
-                # Create OrderItems
-                for cart_item in cart.items.all():
-                    product = cart_item.product  # assuming this is a dict or JSONField
-                    variant = cart_item.variant
+        # Create OrderItems
+        print('cart.items.all()', cart.items.all())
+        for cart_item in cart.items.all():
+            product = cart_item.product  # assuming this is a dict or JSONField
+            variant = cart_item.variant
 
-                    product['variant'] = variant  # Add variant details to product snapshot
+            product['variant'] = variant  # Add variant details to product snapshot
 
-                    # Extract price safely
-                    price_str = str(variant.get("price", "0") if isinstance(variant, dict) else "0")
-                    match = re.search(r"([\d.]+)", price_str)
-                    amount = float(match.group(1)) if match else 0.0
+            # Extract price safely
+            price_str = str(variant.get("price", "0") if isinstance(variant, dict) else "0")
+            match = re.search(r"([\d.]+)", price_str)
+            amount = float(match.group(1)) if match else 0.0
 
-                    OrderItem.objects.create(
-                        order=order,
-                        product=product,          # Be careful: if product is dict, make sure field accepts it
-                        unit_price=amount,
-                        quantity=cart_item.quantity,
-                        total=amount * cart_item.quantity
-                    )
-
-                # Create initial Payment (COD by default)
-                Payment.objects.create(
+            for key, value in cart_item.quantity.items():
+                print(f"===quantity key: {key}, value: {value}")
+                OrderItem.objects.create(
                     order=order,
-                    method='cod',
-                    amount=total,
-                    status='pending'
+                    product=product,          # Be careful: if product is dict, make sure field accepts it
+                    unit_price=amount,
+                    quantity=value,
+                    # total=amount * cart_item.quantity
+                    total=amount * value
                 )
 
-                # Create Shipment record
-                Shipment.objects.create(order=order)
+        # Create initial Payment (COD by default)
+        Payment.objects.create(
+            order=order,
+            method='cod',
+            amount=total,
+            status='pending'
+        )
+
+        # Create Shipment record
+        Shipment.objects.create(order=order)
 
                 # # Clear cart (only if everything above succeeded)
                 # cart.items.all().delete()
 
                 # Optionally delete cart itself if it's now empty
-                cart.delete()
+                # cart.delete()
 
-        except Exception as e:
-            # Log the error in production
-            # logger.error(f"Order placement failed: {str(e)}")
-            return Response({
-                "message": "Failed to place order. Please try again.",
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # except Exception as e:
+        #     print(f"Error placing order: {str(e)}")  # For debugging, replace with proper logging in production
+        #     # Log the error in production
+        #     # logger.error(f"Order placement failed: {str(e)}")
+        #     return Response({
+        #         "message": "Failed to place order. Please try again.",
+        #     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # If we reach here, transaction was successful
         serializer = self.get_serializer(order)
@@ -254,3 +258,13 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+
+class ShippingMethodViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ShippingMethodSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = ShipmentSetting.objects.all()
+
+    def get_queryset(self):
+        return self.queryset.filter(is_active=True).order_by('priority')
