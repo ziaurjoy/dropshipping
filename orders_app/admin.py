@@ -9,8 +9,96 @@ from .models import Coupon, Order, OrderItem, Payment, ShipmentSetting, Shipping
 # Inlines
 # ─────────────────────────────────────────────
 
-class OrderItemInline(admin.TabularInline):
+# class OrderItemInline(admin.TabularInline):
 
+#     model = OrderItem
+#     extra = 0
+#     readonly_fields = ('product_display', 'unit_price', 'quantity', 'total')
+#     fields = ('product_display', 'unit_price', 'quantity', 'total')
+#     can_delete = False
+
+#     def has_add_permission(self, request, obj=None):
+#         return False
+
+#     @admin.display(description='Product')
+#     def product_display(self, obj):
+#         p = obj.product
+#         if not p or not isinstance(p, dict):
+#             return '—'
+
+#         title = p.get('title') or p.get('product_name') or 'Unknown Product'
+#         image = p.get('image', '')
+#         price = p.get('price', {})
+
+#         amount = price.get('amount', '') if isinstance(price, dict) else ''
+#         currency = price.get('currency', '') if isinstance(price, dict) else ''
+#         variant = p.get('variant') or {}
+#         size = variant.get('size', '') if isinstance(variant, dict) else ''
+#         color = variant.get('color', '') if isinstance(variant, dict) else ''
+#         offer_id = p.get('offer_id', '')
+#         url = p.get('url', '')
+
+#         # Build variant badge
+#         variant_html = ''
+#         if size or color:
+#             badges = ''
+#             if color:
+#                 badges += format_html(
+#                     '<span style="background:#e0e7ff;color:#3730a3;padding:1px 8px;'
+#                     'border-radius:10px;font-size:11px;margin-right:4px">🎨 {}</span>', color)
+#             if size:
+#                 badges += format_html(
+#                     '<span style="background:#dcfce7;color:#166534;padding:1px 8px;'
+#                     'border-radius:10px;font-size:11px">📐 {}</span>', size)
+#             variant_html = format_html('<div style="margin-top:4px">{}</div>', badges)
+
+#         # Build price display
+#         price_html = ''
+#         if amount:
+#             price_html = format_html(
+#                 '<div style="color:#6b7280;font-size:11px;margin-top:2px">'
+#                 'Listed: {} {}</div>', currency, amount)
+
+#         # Build offer ID / link
+#         meta_html = ''
+#         if offer_id:
+#             if url:
+#                 meta_html = format_html(
+#                     '<div style="color:#9ca3af;font-size:10px;margin-top:3px">'
+#                     'SKU: <a href="{}" target="_blank" style="color:#6366f1">{}</a></div>',
+#                     url, offer_id)
+#             else:
+#                 meta_html = format_html(
+#                     '<div style="color:#9ca3af;font-size:10px;margin-top:3px">SKU: {}</div>',
+#                     offer_id)
+
+#         # Image thumbnail
+#         img_html = ''
+#         if image:
+#             img_html = format_html(
+#                 '<img src="{}" style="width:52px;height:52px;object-fit:cover;'
+#                 'border-radius:6px;margin-right:10px;flex-shrink:0;border:1px solid #e5e7eb">',
+#                 image)
+
+#         return format_html(
+#             '<div style="display:flex;align-items:flex-start">'
+#             '{img}'
+#             '<div>'
+#             '<div style="font-weight:600;font-size:13px;max-width:420px;line-height:1.4">{title}</div>'
+#             '{variant}{price}{meta}'
+#             '</div>'
+#             '</div>',
+#             img=img_html,
+#             title=title,
+#             variant=variant_html,
+#             price=price_html,
+#             meta=meta_html,
+#         )
+
+from django.utils.safestring import mark_safe
+from django.utils.html import format_html
+
+class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     readonly_fields = ('product_display', 'unit_price', 'quantity', 'total')
@@ -26,74 +114,145 @@ class OrderItemInline(admin.TabularInline):
         if not p or not isinstance(p, dict):
             return '—'
 
-        title = p.get('title') or p.get('product_name') or 'Unknown Product'
-        image = p.get('image', '')
-        price = p.get('price', {})
-        amount = price.get('amount', '') if isinstance(price, dict) else ''
-        currency = price.get('currency', '') if isinstance(price, dict) else ''
-        variant = p.get('variant') or {}
-        size = variant.get('size', '') if isinstance(variant, dict) else ''
-        color = variant.get('color', '') if isinstance(variant, dict) else ''
-        offer_id = p.get('offer_id', '')
-        url = p.get('url', '')
+        # ── Basic fields ──────────────────────────────────────────────────────
+        title     = p.get('title') or p.get('product_name') or 'Unknown Product'
+        image     = p.get('image', '')
+        url       = p.get('url', '')
+        offer_id  = p.get('offer_id', '')
+        sold      = p.get('sold', '')
+        rating    = p.get('rating', '')
+        moq       = p.get('moq', '')
 
-        # Build variant badge
-        variant_html = ''
-        if size or color:
-            badges = ''
-            if color:
-                badges += format_html(
-                    '<span style="background:#e0e7ff;color:#3730a3;padding:1px 8px;'
-                    'border-radius:10px;font-size:11px;margin-right:4px">🎨 {}</span>', color)
-            if size:
-                badges += format_html(
-                    '<span style="background:#dcfce7;color:#166534;padding:1px 8px;'
-                    'border-radius:10px;font-size:11px">📐 {}</span>', size)
-            variant_html = format_html('<div style="margin-top:4px">{}</div>', badges)
+        # ── Original listed price (from product.price dict) ───────────────────
+        price_info  = p.get('price', {}) or {}
+        listed_amt  = price_info.get('amount', '') if isinstance(price_info, dict) else ''
+        listed_cur  = price_info.get('currency', '') if isinstance(price_info, dict) else ''
+        overseas    = price_info.get('overseas', '') if isinstance(price_info, dict) else ''
 
-        # Build price display
+        # ── Variants (list of dicts with price, size_name, quantity, stock) ───
+        variants = p.get('variant', [])
+        if isinstance(variants, dict):        # guard: sometimes stored as dict
+            variants = [variants]
+        variants = variants if isinstance(variants, list) else []
+
+        # ── Image ─────────────────────────────────────────────────────────────
+        img_html = format_html(
+            '<img src="{}" style="width:60px;height:60px;object-fit:cover;'
+            'border-radius:8px;border:1px solid #e5e7eb;flex-shrink:0">',
+            image
+        ) if image else format_html(
+            '<div style="width:60px;height:60px;border-radius:8px;background:#f3f4f6;'
+            'display:flex;align-items:center;justify-content:center;'
+            'color:#9ca3af;font-size:20px;flex-shrink:0">📦</div>'
+        )
+
+        # ── Title + link ──────────────────────────────────────────────────────
+        if url:
+            title_html = format_html(
+                '<a href="{}" target="_blank" style="font-weight:700;font-size:13px;'
+                'color:#1d4ed8;text-decoration:none;line-height:1.4;display:block;'
+                'max-width:400px">{}</a>', url, title
+            )
+        else:
+            title_html = format_html(
+                '<span style="font-weight:700;font-size:13px;color:#111827;'
+                'line-height:1.4;display:block;max-width:400px">{}</span>', title
+            )
+
+        # ── Meta badges row (rating, sold, moq) ──────────────────────────────
+        badges_html = ''
+        if rating:
+            badges_html += format_html(
+                '<span style="background:#fef9c3;color:#854d0e;padding:1px 7px;'
+                'border-radius:8px;font-size:11px;margin-right:4px">⭐ {}</span>', rating
+            )
+        if sold:
+            badges_html += format_html(
+                '<span style="background:#f0fdf4;color:#166534;padding:1px 7px;'
+                'border-radius:8px;font-size:11px;margin-right:4px">🛒 {}</span>', sold
+            )
+        if moq:
+            badges_html += format_html(
+                '<span style="background:#eff6ff;color:#1d4ed8;padding:1px 7px;'
+                'border-radius:8px;font-size:11px">📦 {}</span>', moq
+            )
+        meta_badges_html = format_html(
+            '<div style="margin-top:5px">{}</div>', mark_safe(badges_html)
+        ) if badges_html else ''
+
+        # ── Original price row ────────────────────────────────────────────────
         price_html = ''
-        if amount:
+        if listed_amt or overseas:
             price_html = format_html(
-                '<div style="color:#6b7280;font-size:11px;margin-top:2px">'
-                'Listed: {} {}</div>', currency, amount)
+                '<div style="margin-top:4px;font-size:11px;color:#6b7280">'
+                'Listed: <strong>{} {}</strong>'
+                '{}'
+                '</div>',
+                listed_cur, listed_amt,
+                format_html(' &nbsp;·&nbsp; <span style="color:#059669">{}</span>', overseas) if overseas else ''
+            )
 
-        # Build offer ID / link
-        meta_html = ''
-        if offer_id:
-            if url:
-                meta_html = format_html(
-                    '<div style="color:#9ca3af;font-size:10px;margin-top:3px">'
-                    'SKU: <a href="{}" target="_blank" style="color:#6366f1">{}</a></div>',
-                    url, offer_id)
-            else:
-                meta_html = format_html(
-                    '<div style="color:#9ca3af;font-size:10px;margin-top:3px">SKU: {}</div>',
-                    offer_id)
+        # ── Variants table ────────────────────────────────────────────────────
+        variants_html = ''
+        if variants:
+            rows = ''
+            for v in variants:
+                size_name = v.get('size_name', '—')
+                v_price   = v.get('price', '—')
+                v_qty     = v.get('quantity', '—')
+                v_stock   = v.get('stock', '')
+                stock_badge = format_html(
+                    '<span style="color:#6b7280;font-size:10px">{}</span>', v_stock
+                ) if v_stock else ''
 
-        # Image thumbnail
-        img_html = ''
-        if image:
-            img_html = format_html(
-                '<img src="{}" style="width:52px;height:52px;object-fit:cover;'
-                'border-radius:6px;margin-right:10px;flex-shrink:0;border:1px solid #e5e7eb">',
-                image)
+                rows += format_html(
+                    '<tr style="border-bottom:1px solid #f3f4f6">'
+                    '<td style="padding:3px 8px;font-size:11px;font-weight:600;color:#374151">{size}</td>'
+                    '<td style="padding:3px 8px;font-size:11px;color:#059669;font-weight:700">{price}</td>'
+                    '<td style="padding:3px 8px;font-size:11px;color:#6b7280">qty: {qty} {stock}</td>'
+                    '</tr>',
+                    size=size_name, price=v_price, qty=v_qty, stock=stock_badge
+                )
+            variants_html = format_html(
+                '<div style="margin-top:6px">'
+                '<table style="border-collapse:collapse;background:#f9fafb;'
+                'border-radius:6px;overflow:hidden;font-size:11px;width:auto">'
+                '<thead><tr style="background:#f3f4f6">'
+                '<th style="padding:3px 8px;text-align:left;color:#9ca3af;font-weight:600;font-size:10px">SIZE</th>'
+                '<th style="padding:3px 8px;text-align:left;color:#9ca3af;font-weight:600;font-size:10px">PRICE</th>'
+                '<th style="padding:3px 8px;text-align:left;color:#9ca3af;font-weight:600;font-size:10px">QTY</th>'
+                '</tr></thead>'
+                '<tbody>{}</tbody>'
+                '</table></div>',
+                mark_safe(rows)
+            )
 
+        # ── Offer ID / SKU ────────────────────────────────────────────────────
+        sku_html = format_html(
+            '<div style="margin-top:4px;font-size:10px;color:#9ca3af">'
+            'SKU: <span style="font-family:monospace;color:#6366f1">{}</span></div>',
+            offer_id
+        ) if offer_id else ''
+
+        # ── Assemble ──────────────────────────────────────────────────────────
         return format_html(
-            '<div style="display:flex;align-items:flex-start">'
+            '<div style="display:flex;align-items:flex-start;gap:12px;padding:4px 0">'
             '{img}'
-            '<div>'
-            '<div style="font-weight:600;font-size:13px;max-width:420px;line-height:1.4">{title}</div>'
-            '{variant}{price}{meta}'
+            '<div style="flex:1">'
+            '{title}'
+            '{meta_badges}'
+            '{price}'
+            '{variants}'
+            '{sku}'
             '</div>'
             '</div>',
             img=img_html,
-            title=title,
-            variant=variant_html,
+            title=title_html,
+            meta_badges=meta_badges_html,
             price=price_html,
-            meta=meta_html,
+            variants=variants_html,
+            sku=sku_html,
         )
-
 
 class PaymentInline(admin.TabularInline):
     model = Payment
