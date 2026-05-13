@@ -192,24 +192,56 @@ def convert_list_currency_to_bdt(data, cny_to_bdt_rate: float = 16.5):
 
     return data
 
+# class ProductFrom1688ViewSet(viewsets.ViewSet):
+#     """
+#     A simple ViewSet for listing or retrieving users.
+#     """
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def list(self, request):
+#         data = get_products_from_fastapi(
+#             page=int(request.query_params.get('page', 0)),
+#             limit=int(request.query_params.get('limit', 20)),
+#             category=request.query_params.get('category'),
+#             search=request.query_params.get('search'),
+#             request=request
+#         )
+
+#         cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
+
+#         converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
+#         return Response(converted)
+
+
 class ProductFrom1688ViewSet(viewsets.ViewSet):
-    """
-    A simple ViewSet for listing or retrieving users.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        data = get_products_from_fastapi(
-            page=int(request.query_params.get('page', 0)),
-            limit=int(request.query_params.get('limit', 20)),
-            category=request.query_params.get('category'),
-            search=request.query_params.get('search'),
-            request=request
+        # Parse discount: "true" → True, anything else → None
+        discount_param = request.query_params.get('discount')
+        discount = (
+            True  if discount_param == "true"  else
+            False if discount_param == "false" else
+            None
         )
 
-        cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
 
-        converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
+        data = get_products_from_fastapi(
+            page      = int(request.query_params.get('page', 1)),
+            limit     = int(request.query_params.get('page_size', 20)),
+            category  = request.query_params.get('category'),
+            search    = request.query_params.get('search'),
+            min_price = float(min_price) if min_price else None,
+            max_price = float(max_price) if max_price else None,
+            discount  = discount,
+            sort      = request.query_params.get('sort'),
+            request   = request,
+        )
+
+        rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
+        converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)
         return Response(converted)
 
 
