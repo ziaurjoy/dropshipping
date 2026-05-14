@@ -230,7 +230,7 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
 
         data = get_products_from_fastapi(
             page      = int(request.query_params.get('page', 1)),
-            limit     = int(request.query_params.get('page_size', 20)),
+            limit     = int(request.query_params.get('limit', 20)),
             category  = request.query_params.get('category'),
             search    = request.query_params.get('search'),
             min_price = float(min_price) if min_price else None,
