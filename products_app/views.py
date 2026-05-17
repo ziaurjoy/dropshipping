@@ -214,7 +214,8 @@ def convert_list_currency_to_bdt(data, cny_to_bdt_rate: float = 16.5):
 
 
 class ProductFrom1688ViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def list(self, request):
         # Parse discount: "true" → True, anything else → None
@@ -351,7 +352,9 @@ class Categories1688ViewSet(viewsets.ViewSet):
     """
     A simple ViewSet for listing or retrieving users.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
+
 
     def list(self, request):
         data = get_category_from_fastapi(
