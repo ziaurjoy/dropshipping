@@ -200,3 +200,16 @@ class SettingExchangeRate(models.Model):
     rate = models.DecimalField(max_digits=12, decimal_places=6)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+
+class Categories(models.Model):
+    title = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    search_item = models.CharField(max_length=100, blank=True)
+    filter_schema = models.JSONField(blank=True, null=True)
+    status = models.BooleanField(default=True)
+    parent = models.PositiveIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return self.title
