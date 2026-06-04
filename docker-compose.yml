@@ -1,11 +1,14 @@
-version: '3.14'
-
 services:
   web:
     build: .
     container_name: drf_app
     env_file:
       - .env
+    environment:
+      - APP_PORT=${APP_PORT:-8000}
+      - DJANGO_PORT=${APP_PORT:-8000}
+      - DB_HOST=db
+      - REDIS_HOST=redis
     ports:
       - '${APP_PORT}:${APP_PORT}'
     command: >

@@ -66,12 +66,19 @@ class ShippingZoneSerializer(serializers.ModelSerializer):
 
 
 class ShipmentSerializer(serializers.ModelSerializer):
+    order_number = serializers.SerializerMethodField(read_only=True)
+    address = DeliveryAddressSerializer(source='order.address', read_only=True)
+
+    def get_order_number(self, obj):
+        return getattr(obj.order, 'order_number', None)
     class Meta:
         model = Shipment
         fields = [
-            'id', 'order', 'carrier', 'tracking_number','tracking_url', 'estimated_delivery', 'status', 'shipped_at'
+            'id', 'order', 'order_number', 'carrier', 'tracking_number','tracking_url', 'estimated_delivery', 'status', 'shipped_at', 'address'
             ]
-        read_only_fields = ['id', 'tracking_number', 'tracking_url', 'estimated_delivery', 'shipped_at']
+        read_only_fields = ['id', 'tracking_number', 'tracking_url', 'estimated_delivery', 'shipped_at', 'address']
+        # depth = 1
+
 
 
 class SupportTicketSerializer(serializers.ModelSerializer):

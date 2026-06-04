@@ -186,16 +186,28 @@ class ShippingZone(models.Model):
 
 class Shipment(models.Model):
     """Tracks physical shipment via SkyShip or 3PL."""
-    STATUS_CHOICES = [
-        # ('pending', 'Pending'),
-        # ('picked', 'Picked'),
-        # ('in_transit', 'In Transit'),
+    # STATUS_CHOICES = [
+    #     # ('pending', 'Pending'),
+    #     # ('picked', 'Picked'),
+    #     # ('in_transit', 'In Transit'),
 
-        ('delivering', 'Delivering'),
-        ('delivered', 'Delivered'),
-        ('returned', 'Returned'),
-        ('out_for_delivery', 'Out for Delivery')
-    ]
+    #     ('delivering', 'Delivering'),
+    #     ('delivered', 'Delivered'),
+    #     ('returned', 'Returned'),
+    #     ('out_for_delivery', 'Out for Delivery')
+    # ]
+
+    STATUS_CHOICES = (
+        ('PENDING', 'Pending'),
+        ('CONFIRMED', 'Confirmed'),
+        ('PROCESSING', 'Processing'),
+        ('SHIPPED', 'Shipped'),
+        ('RESCHEDULED', 'Rescheduled'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+        ('REFUNDED', 'Refunded'),
+        ('FAILED', 'Failed'),
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='shipment')
@@ -205,7 +217,7 @@ class Shipment(models.Model):
     shipped_at = models.DateTimeField(null=True, blank=True)
     estimated_delivery = models.DateField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='delivering', db_index=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='PENDING', db_index=True)
 
     def __str__(self):
         return f"Shipment for {self.order.order_number}"

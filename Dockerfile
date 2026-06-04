@@ -4,6 +4,7 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV APP_PORT=8000
 
 COPY requirements.txt .
 RUN pip install --upgrade pip
@@ -11,4 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:${DJANGO_PORT}"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:${APP_PORT:-8000}"]

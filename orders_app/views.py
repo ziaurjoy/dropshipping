@@ -365,6 +365,21 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         serializer = ShipmentSerializer(shipment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def track(self, request):
+        """POST /api/shipments/track/ with {"tracking_number": "..."} → returns shipment info"""
+        tracking_number = request.data.get('tracking_number') or request.query_params.get('tracking_number')
+        if not tracking_number:
+            return Response({"error": "tracking_number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            shipment = Shipment.objects.get(tracking_number__iexact=tracking_number.strip())
+        except Shipment.DoesNotExist:
+            return Response({"error": "Tracking number not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ShipmentSerializer(shipment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -384,3 +399,4 @@ class ShippingMethodViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return self.queryset.filter(is_active=True).order_by('priority')
+
