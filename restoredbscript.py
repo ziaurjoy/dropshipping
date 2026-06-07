@@ -7,20 +7,20 @@ DUMP_FILE = "backup.sql"
 
 def restore_dump_file(dump_file_path):
     """Restore PostgreSQL dump file using pg_restore"""
-    
+
     if not os.path.exists(dump_file_path):
         print(f"❌ Error: {dump_file_path} not found")
         return False
-    
+
     try:
         print(f"🔄 Restoring database from {dump_file_path}...")
-        
+
         result = subprocess.run(
             ["pg_restore", "-d", DB_URL, "-v", dump_file_path],
             capture_output=True,
             text=True
         )
-        
+
         if result.returncode == 0:
             print("✅ Database restored successfully!")
             return True
@@ -28,7 +28,7 @@ def restore_dump_file(dump_file_path):
             print("❌ Error while restoring database:")
             print(result.stderr)
             return False
-            
+
     except Exception as e:
         print(f"❌ Error: {e}")
         return False
