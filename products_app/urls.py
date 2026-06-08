@@ -8,7 +8,7 @@ from .views import (BannerViewSet, Categories1688ViewSet, CategoryViewSet, Produ
 router = DefaultRouter()
 # router.register(r'product', ProductViewSet, basename='product')
 router.register(r'product-from-1688', ProductFrom1688ViewSet, basename='product-from-1688')
-router.register(r'exchange-rates', SettingExchangeRateViewSet, basename='exchange-rate')
+# router.register(r'exchange-rates', SettingExchangeRateViewSet, basename='exchange-rate')
 
 router.register(r'categories-from-1688', Categories1688ViewSet, basename='categories-from-1688')
 router.register(r'categories', CategoryViewSet, basename='category')
