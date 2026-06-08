@@ -13,6 +13,7 @@ services:
       - '${APP_PORT}:${APP_PORT}'
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
              python manage.py runserver 0.0.0.0:${APP_PORT}"
     volumes:
       - .:/app
