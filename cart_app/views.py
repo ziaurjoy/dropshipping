@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
 from products_app.services import get_products_details_from_fastapi
-from .models import Cart, CartItem
+from .models import Cart, CartItem, NewCartItem
 from .serializers import CartSerializer, CartItemSerializer
 from products_app.models import Product
 
@@ -63,7 +63,7 @@ class CartView(APIView):
 
             import copy
             product = copy.deepcopy(get_products_details_from_fastapi(product_id=product_id, request=request))
-
+            print('Fetched product details:', product)
             _product = product.get("product", {})
             details = _product.get("details", {})
             cart_data = details.get("extract_product_title_and_cart", {}).get("cart", {})
@@ -72,7 +72,7 @@ class CartView(APIView):
             # variant = next((s for s in skus if s == variant.get('size')), {})
             print('Found variant:', variant)
             # Remove heavy data
-            product["product"].pop("details", None)
+            # product["product"].pop("details", None)
             cart_item, created = CartItem.objects.update_or_create(
                 cart=_cart,
                 product_id=_product.get("_id"),
@@ -102,3 +102,63 @@ class CartView(APIView):
         cart.items.all().delete()
         return Response({"message": "Cart cleared"}, status=status.HTTP_200_OK)
 
+
+
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+from .serializers import AddToCartSerializer, CartItemResponseSerializer
+
+
+class AddToCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # ── GET /api/cart/add/ ────────────────────────────────────
+    def get(self, request):
+        cart_items = NewCartItem.objects.filter(
+            user=request.user
+        ).select_related(
+            'variant'
+        ).prefetch_related(
+            'variant__sizes'
+        ).order_by('-created_at')
+
+        serializer = CartItemResponseSerializer(cart_items, many=True)
+
+        return Response(
+            {
+                'success': True,
+                'count':   cart_items.count(),
+                'data':    serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    # ── POST /api/cart/add/ ───────────────────────────────────
+    def post(self, request):
+        serializer = AddToCartSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                {'success': False, 'errors': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        cart_item = serializer.save()
+
+        return Response(
+            {
+                'success': True,
+                'message': 'Product added to cart successfully.',
+                'data':    CartItemResponseSerializer(cart_item).data,
+            },
+            status=status.HTTP_201_CREATED
+        )

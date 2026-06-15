@@ -102,3 +102,56 @@ class CartItem(models.Model):
 
         result = calculate_total(self.variant)
         return result["grand_total"]
+
+
+
+
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class NewCartItem(models.Model):
+    SHIPPING_CHOICES = [
+        ('air', 'By Air'),
+        ('sea', 'By Sea'),
+    ]
+
+    user            = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cart_items')
+    product_id      = models.CharField(max_length=100)
+    shipping_method = models.CharField(max_length=10, choices=SHIPPING_CHOICES, default='air')
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.product_id}"
+
+
+class CartVariant(models.Model):
+    cart_item  = models.OneToOneField(NewCartItem, on_delete=models.CASCADE, related_name='variant')
+    color_name = models.CharField(max_length=100)
+    image      = models.URLField()
+    weight_kg  = models.FloatField(default=0)
+
+    # weightInfo fields
+    sku_id  = models.BigIntegerField()
+    sku1    = models.CharField(max_length=100)
+    weight  = models.FloatField()   # grams
+    length  = models.FloatField()
+    width   = models.FloatField()
+    height  = models.FloatField()
+    volume  = models.FloatField()
+
+    def __str__(self):
+        return f"{self.cart_item} - {self.color_name}"
+
+
+class CartVariantSize(models.Model):
+    variant   = models.ForeignKey(CartVariant, on_delete=models.CASCADE, related_name='sizes')
+    size_name = models.CharField(max_length=100)
+    price     = models.DecimalField(max_digits=10, decimal_places=2)
+    stock     = models.IntegerField()
+    quantity  = models.IntegerField(default=0)  # from quantity map
+
+    def __str__(self):
+        return f"{self.variant} - {self.size_name}"
