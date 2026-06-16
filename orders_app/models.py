@@ -10,7 +10,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from products_app.models import Product, ProductVariant
-from cart_app.models import Cart  # for easy order creation
+# from cart_app.models import Cart  # for easy order creation
 from users_app.models import DeliveryAddress
 from . import utils
 
@@ -34,6 +34,8 @@ User = get_user_model()
 #         return f"{self.full_name} - {self.city}"
 
 
+
+
 class Coupon(models.Model):
     """Discount coupons."""
     id = models.AutoField(primary_key=True)
@@ -51,8 +53,15 @@ class Coupon(models.Model):
         return self.code
 
 
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+import random
+
 class Order(models.Model):
-    """Placed order. Tracks full lifecycle."""
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),
@@ -60,53 +69,80 @@ class Order(models.Model):
         ('shipped', 'Shipped'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
-        ('refunded', 'Refunded'),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    order_number = models.CharField(max_length=50, unique=True)
+    SHIPPING_CHOICES = [
+        ('air', 'By Air'),
+        ('sea', 'By Sea'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
-    address = models.ForeignKey(DeliveryAddress, on_delete=models.PROTECT, blank=True, null=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
-    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    shipping_charge = models.DecimalField(max_digits=12, decimal_places=2)
-    total = models.DecimalField(max_digits=12, decimal_places=2)
-    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders_coupon')
-    notes = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # === Changed to 6-digit numeric order number ===
+    order_number = models.CharField(
+        max_length=6,
+        unique=True,
+        editable=False,
+        help_text="6-digit order number (e.g., 784912)"
+    )
+
+    address = models.ForeignKey(
+        DeliveryAddress,
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True
+    )
+
+    product_id = models.CharField(max_length=100)
+    product_name = models.CharField(max_length=500)
+    product_image = models.URLField(max_length=1000)
+    variants = models.JSONField(default=list)
+
+    shipping_method = models.CharField(
+        max_length=10,
+        choices=SHIPPING_CHOICES,
+        default='air'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
-
-    def __str__(self):
-        return self.order_number
+        verbose_name = "Order"
+        verbose_name_plural = "Orders"
 
     def save(self, *args, **kwargs):
         if not self.order_number:
-            self.order_number = utils.generate_order_number(self)
+            self.order_number = self._generate_unique_order_number()
         super().save(*args, **kwargs)
 
+    def _generate_unique_order_number(self) -> str:
+        """Generate a unique 6-digit numeric order number"""
+        while True:
+            # Generate 6-digit number (100000 to 999999)
+            number = str(random.randint(100000, 999999))
 
-class OrderItem(models.Model):
-    """Snapshot of each product at purchase time."""
-    id = models.AutoField(primary_key=True)
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.JSONField(blank=True, null=True)  # Store product details as JSON for immutability
-    # product_name = models.CharField(max_length=300)
-    # sku = models.CharField(max_length=100)
-    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
-    quantity = models.PositiveIntegerField()
-    total = models.DecimalField(max_digits=12, decimal_places=2)
+            if not Order.objects.filter(order_number=number).exists():
+                return number
 
     def __str__(self):
-        return self.product.get('title', 'Unknown Product')
+        return f"#{self.order_number} — {self.user} — {self.status}"
+
+    # Helper property for frontend
+    @property
+    def display_order_number(self):
+        return f"#{self.order_number}"
 
 
-
-
-    # def __str__(self):
-    #     return f"{self.quantity} × {self.sku}"
 
 
 class Payment(models.Model):
@@ -151,7 +187,7 @@ class ShipmentSetting(models.Model):
     )
 
     price = models.PositiveIntegerField(default=0)  # Flat charge for this shipping method
-    # price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     estimated_days_min = models.PositiveIntegerField()
     estimated_days_max = models.PositiveIntegerField()
 
@@ -186,16 +222,6 @@ class ShippingZone(models.Model):
 
 class Shipment(models.Model):
     """Tracks physical shipment via SkyShip or 3PL."""
-    # STATUS_CHOICES = [
-    #     # ('pending', 'Pending'),
-    #     # ('picked', 'Picked'),
-    #     # ('in_transit', 'In Transit'),
-
-    #     ('delivering', 'Delivering'),
-    #     ('delivered', 'Delivered'),
-    #     ('returned', 'Returned'),
-    #     ('out_for_delivery', 'Out for Delivery')
-    # ]
 
     STATUS_CHOICES = (
         ('PENDING', 'Pending'),
@@ -266,3 +292,11 @@ class SupportTicket(models.Model):
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"
+
+
+
+
+
+
+
+

@@ -9,12 +9,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
-from cart_app.models import Cart
+# from cart_app.models import Cart
 from users_app.models import DeliveryAddress
-from .models import Order, OrderItem, Payment, Shipment, Coupon, ShipmentSetting, ShippingZone, SupportTicket
-from .serializers import (CouponSerializer, OrderItemSerializer, OrderSerializer,
-    PaymentSerializer, ShipmentSerializer, ShippingMethodSerializer, ShippingZoneSerializer,
-    SupportTicketSerializer)
+from users_app.serializers import DeliveryAddressSerializer
+from .models import Payment, Shipment, Coupon, ShipmentSetting, ShippingZone, SupportTicket
+from .serializers import (CouponSerializer, OrderDetailsResponseSerializer, PaymentSerializer,
+    ShipmentSerializer, ShippingMethodSerializer, ShippingZoneSerializer, SupportTicketSerializer)
 
 
 
@@ -27,119 +27,119 @@ def _extract_price(variant) -> float:
     return float(match.group(1)) if match else 0.0
 
 
-class OrderViewSet(viewsets.ModelViewSet):
-    serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
+# class OrderViewSet(viewsets.ModelViewSet):
+#     serializer_class = OrderSerializer
+#     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
+#     def get_queryset(self):
+#         return Order.objects.filter(user=self.request.user)
 
-    @action(detail=False, methods=["post"])
-    def place_order(self, request):
-        """POST /api/orders/place_order/ → converts current cart to an order."""
+#     @action(detail=False, methods=["post"])
+#     def place_order(self, request):
+#         """POST /api/orders/place_order/ → converts current cart to an order."""
 
-        # ── 1. Validate cart ──────────────────────────────────────────────────
-        # cart = (
-        #     Cart.objects.prefetch_related("items__product", "items__variant")
-        #     .filter(user=request.user)
-        #     .first()
-        # )
-        cart = Cart.objects.filter(user=request.user).first()
+#         # ── 1. Validate cart ──────────────────────────────────────────────────
+#         # cart = (
+#         #     Cart.objects.prefetch_related("items__product", "items__variant")
+#         #     .filter(user=request.user)
+#         #     .first()
+#         # )
+#         cart = Cart.objects.filter(user=request.user).first()
 
-        if not cart or not cart.items.exists():
-            return Response(
-                {"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         if not cart or not cart.items.exists():
+#             return Response(
+#                 {"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST
+#             )
 
-        # ── 2. Validate request payload ───────────────────────────────────────
-        address_id = request.data.get("address_id")
-        raw_shipping = request.data.get("shipping_charge")
+#         # ── 2. Validate request payload ───────────────────────────────────────
+#         address_id = request.data.get("address_id")
+#         raw_shipping = request.data.get("shipping_charge")
 
-        if not address_id or raw_shipping is None:
-            return Response(
-                {"error": "address_id and shipping_charge are required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+#         if not address_id or raw_shipping is None:
+#             return Response(
+#                 {"error": "address_id and shipping_charge are required"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
 
-        try:
-            shipping_charge = float(raw_shipping)
-            if shipping_charge < 0:
-                raise ValueError
-        except (TypeError, ValueError):
-            return Response(
-                {"error": "shipping_charge must be a non-negative number"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+#         try:
+#             shipping_charge = float(raw_shipping)
+#             if shipping_charge < 0:
+#                 raise ValueError
+#         except (TypeError, ValueError):
+#             return Response(
+#                 {"error": "shipping_charge must be a non-negative number"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
 
-        address = get_object_or_404(
-            DeliveryAddress, id=address_id, user=request.user
-        )
+#         address = get_object_or_404(
+#             DeliveryAddress, id=address_id, user=request.user
+#         )
 
-        # ── 3. Build everything inside a single atomic block ──────────────────
-        try:
-            with transaction.atomic():
-                cart_items = list(cart.items.all())  # evaluate once
+#         # ── 3. Build everything inside a single atomic block ──────────────────
+#         try:
+#             with transaction.atomic():
+#                 cart_items = list(cart.items.all())  # evaluate once
 
-                subtotal = sum(item.total_price for item in cart_items)
-                total = subtotal + shipping_charge
+#                 subtotal = sum(item.total_price for item in cart_items)
+#                 total = subtotal + shipping_charge
 
-                order = Order.objects.create(
-                    user=request.user,
-                    address=address,
-                    subtotal=subtotal,
-                    shipping_charge=shipping_charge,
-                    total=total,
-                )
+#                 order = Order.objects.create(
+#                     user=request.user,
+#                     address=address,
+#                     subtotal=subtotal,
+#                     shipping_charge=shipping_charge,
+#                     total=total,
+#                 )
 
-                order_items = []
-                for cart_item in cart_items:
-                    product = dict(cart_item.product)   # shallow copy — avoid mutating cached obj
-                    variant = cart_item.variant
-                    product["variant"] = variant
+#                 order_items = []
+#                 for cart_item in cart_items:
+#                     product = dict(cart_item.product)   # shallow copy — avoid mutating cached obj
+#                     variant = cart_item.variant
+#                     product["variant"] = variant
 
-                    unit_price = _extract_price(variant)
-                    quantities = cart_item.quantity  # expected: {size_or_key: qty}
+#                     unit_price = _extract_price(variant)
+#                     quantities = cart_item.quantity  # expected: {size_or_key: qty}
 
-                    if not isinstance(quantities, dict):
-                        raise ValueError(
-                            f"Unexpected quantity format for cart item {cart_item.pk}"
-                        )
+#                     if not isinstance(quantities, dict):
+#                         raise ValueError(
+#                             f"Unexpected quantity format for cart item {cart_item.pk}"
+#                         )
 
-                    for _key, qty in quantities.items():
-                        order_items.append(
-                            OrderItem(
-                                order=order,
-                                product=product,
-                                unit_price=unit_price,
-                                quantity=qty,
-                                total=unit_price * qty,
-                            )
-                        )
+#                     for _key, qty in quantities.items():
+#                         order_items.append(
+#                             OrderItem(
+#                                 order=order,
+#                                 product=product,
+#                                 unit_price=unit_price,
+#                                 quantity=qty,
+#                                 total=unit_price * qty,
+#                             )
+#                         )
 
-                OrderItem.objects.bulk_create(order_items)  # single INSERT
+#                 OrderItem.objects.bulk_create(order_items)  # single INSERT
 
-                Payment.objects.create(
-                    order=order,
-                    method="cod",
-                    amount=total,
-                    status="pending",
-                )
+#                 Payment.objects.create(
+#                     order=order,
+#                     method="cod",
+#                     amount=total,
+#                     status="pending",
+#                 )
 
-                Shipment.objects.create(order=order)
+#                 Shipment.objects.create(order=order)
 
-                # Clear cart only after everything above succeeded
-                cart.items.all().delete()
-                cart.delete()
+#                 # Clear cart only after everything above succeeded
+#                 cart.items.all().delete()
+#                 cart.delete()
 
-        except Exception as exc:
-            # transaction is already rolled back at this point
-            return Response(
-                {"error": f"Order could not be placed: {str(exc)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+#         except Exception as exc:
+#             # transaction is already rolled back at this point
+#             return Response(
+#                 {"error": f"Order could not be placed: {str(exc)}"},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             )
 
-        serializer = self.get_serializer(order)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         serializer = self.get_serializer(order)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 # class OrderViewSet(viewsets.ModelViewSet):
@@ -290,15 +290,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     #     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-# class AddressViewSet(viewsets.ModelViewSet):
-#     serializer_class = AddressSerializer
-#     permission_classes = [permissions.IsAuthenticated]
+class DeliveryAddressViewSet(viewsets.ModelViewSet):
+    serializer_class = DeliveryAddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-#     def get_queryset(self):
-#         return Address.objects.filter(user=self.request.user)
+    def get_queryset(self):
+        return DeliveryAddress.objects.filter(user=self.request.user)
 
-#     def perform_create(self, serializer):
-#         serializer.save(user=self.request.user)
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 # Other simple read/write ViewSets
@@ -346,19 +346,19 @@ class ShipmentViewSet(viewsets.ModelViewSet):
             return Response({"error": "carrier is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if order exists
-        try:
-            order = Order.objects.get(id=order_id)
-        except Order.DoesNotExist:
-            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+        # try:
+        #     order = Order.objects.get(id=order_id)
+        # except Order.DoesNotExist:
+        #     return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check if shipment already exists for this order
-        if hasattr(order, 'shipment'):
-            return Response({"error": "Shipment already exists for this order"},
-                          status=status.HTTP_400_BAD_REQUEST)
+        # if hasattr(order, 'shipment'):
+        #     return Response({"error": "Shipment already exists for this order"},
+        #                   status=status.HTTP_400_BAD_REQUEST)
 
         # Create shipment - only order and carrier from user, rest auto-generated
         shipment = Shipment.objects.create(
-            order=order,
+            # order=order,
             carrier=carrier.strip()
         )
 
@@ -399,4 +399,88 @@ class ShippingMethodViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return self.queryset.filter(is_active=True).order_by('priority')
+
+
+
+
+
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.viewsets import ModelViewSet
+
+from .models import Order
+from .serializers import PlaceOrderSerializer, OrderResponseSerializer
+
+
+class OrderViewSet(ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class   = OrderResponseSerializer
+    http_method_names  = ['get', 'post']        # no put/patch/delete
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PlaceOrderSerializer
+        return OrderResponseSerializer
+
+    # ── POST /api/orders/ ─────────────────────────────────────
+    def create(self, request, *args, **kwargs):
+        serializer = PlaceOrderSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        orders = serializer.save()
+
+        return Response(
+            {
+                'success': True,
+                'message': f'{len(orders)} order(s) placed successfully.',
+                'data':    OrderResponseSerializer(orders, many=True).data,
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    # ── GET /api/orders/ ──────────────────────────────────────
+    def list(self, request, *args, **kwargs):
+        queryset   = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(
+            {
+                'success': True,
+                'count':   queryset.count(),
+                'data':    serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    # ── GET /api/orders/{id}/ ─────────────────────────────────
+    def retrieve(self, request, *args, **kwargs):
+        instance   = self.get_object()
+        # serializer = self.get_serializer(instance)
+        serializer = OrderDetailsResponseSerializer(instance)
+
+        return Response(
+            {
+                'success': True,
+                'data':    serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=['get'])
+    def track(self, request, pk=None):
+        order = self.get_object()
+        shipment = getattr(order, 'shipment', None)
+
+        if not shipment:
+            return Response({"error": "Shipment info not available for this order"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ShipmentSerializer(shipment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
