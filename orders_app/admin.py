@@ -611,9 +611,8 @@ from django.http import HttpResponse
 from django.template.response import TemplateResponse
 from .models import Order
 from django.utils.safestring import mark_safe
-
 from django.contrib import admin
-from django.utils.safestring import mark_safe
+
 from .models import Order
 
 
