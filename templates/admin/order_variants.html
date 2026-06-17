@@ -1,12 +1,14 @@
 {% extends "admin/base_site.html" %} {% block title %}{{ title }}{% endblock %} {% block content %}
 <div style="max-width: 900px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
 	<!-- Breadcrumb -->
+	{% comment %}
 	<div style="margin-bottom: 20px">
-		<a href="{% url 'admin:app_order_changelist' %}" style="color: #f97316; text-decoration: none">Orders</a>
+		<a href="{% url 'admin:order_changelist' %}" style="color: #f97316; text-decoration: none"> Orders </a>
 		&rsaquo;
-		<a href="{% url 'admin:app_order_change' order.id %}" style="color: #f97316; text-decoration: none"> {{ order.order_number }} </a>
+		<a href="{% url 'admin:order_change' order.id %}" style="color: #f97316; text-decoration: none"> {{ order.order_number }} </a>
 		&rsaquo; Variants
 	</div>
+	{% endcomment %}
 
 	<!-- Order header card -->
 	<div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 24px">
@@ -118,12 +120,14 @@
 
 	<!-- Back button -->
 	<div style="margin-top: 24px">
+		{% comment %}
 		<a
 			href="{% url 'admin:app_order_change' order.id %}"
 			style="background: #f97316; color: white; padding: 8px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px"
 		>
 			← Back to Order
 		</a>
+		{% endcomment %}
 	</div>
 </div>
 {% endblock %}
