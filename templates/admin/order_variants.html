@@ -1,0 +1,129 @@
+{% extends "admin/base_site.html" %} {% block title %}{{ title }}{% endblock %} {% block content %}
+<div style="max-width: 900px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+	<!-- Breadcrumb -->
+	<div style="margin-bottom: 20px">
+		<a href="{% url 'admin:app_order_changelist' %}" style="color: #f97316; text-decoration: none">Orders</a>
+		&rsaquo;
+		<a href="{% url 'admin:app_order_change' order.id %}" style="color: #f97316; text-decoration: none"> {{ order.order_number }} </a>
+		&rsaquo; Variants
+	</div>
+
+	<!-- Order header card -->
+	<div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 24px">
+		<div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 12px">
+			<div style="display: flex; gap: 16px; align-items: center">
+				<img
+					src="{{ order.product_image }}"
+					style="width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid #fed7aa"
+					onerror="this.style.display = 'none'"
+				/>
+				<div>
+					<div style="font-size: 18px; font-weight: 700; color: #1f2937">{{ order.order_number }}</div>
+					<div style="font-size: 13px; color: #6b7280; margin-top: 4px">{{ order.product_name }}</div>
+					<div style="font-size: 12px; color: #9ca3af; margin-top: 2px">Track ID: {{ order.track_id }}</div>
+				</div>
+			</div>
+			<div style="text-align: right">
+				<div style="font-size: 22px; font-weight: 700; color: #f97316">৳{{ order.total_price }}</div>
+				<span
+					style="
+          display:inline-block;margin-top:6px;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;
+          background:{% if order.status == 'pending' %}#fef3c7{% elif order.status == 'delivered' %}#d1fae5{% elif order.status == 'cancelled' %}#fee2e2{% else %}#dbeafe{% endif %};
+          color:{% if order.status == 'pending' %}#d97706{% elif order.status == 'delivered' %}#059669{% elif order.status == 'cancelled' %}#dc2626{% else %}#2563eb{% endif %}
+        "
+				>
+					{{ order.get_status_display }}
+				</span>
+				<div style="font-size: 11px; color: #9ca3af; margin-top: 6px">
+					{% if order.shipping_method == 'air' %}✈️{% else %}🚢{% endif %} {{ order.get_shipping_method_display }}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Variants -->
+	<h2 style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 16px">
+		Variants
+		<span style="background: #f97316; color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px">
+			{{ variants|length }}
+		</span>
+	</h2>
+
+	{% for entry in variants %} {% with v=entry.variant q=entry.quantity %}
+	<div style="border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 16px; overflow: hidden; background: white">
+		<!-- Color header -->
+		<div style="background: #f9fafb; padding: 14px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #f3f4f6">
+			<img
+				src="{{ v.image }}"
+				style="width: 52px; height: 52px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb"
+				onerror="this.style.display = 'none'"
+			/>
+			<div style="flex: 1">
+				<div style="font-weight: 700; font-size: 15px; color: #1f2937">{{ v.color_name }}</div>
+				<div style="font-size: 12px; color: #6b7280; margin-top: 3px">
+					⚖️ {{ v.weightKg }} kg &nbsp;·&nbsp; 📐 {{ v.weightInfo.length }} × {{ v.weightInfo.width }} × {{ v.weightInfo.height }} cm &nbsp;·&nbsp; 📦
+					Vol: {{ v.weightInfo.volume }} cm³
+				</div>
+			</div>
+			<!-- total qty badge for this color -->
+			{% with total_qty=0 %}
+			<div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 16px; text-align: center">
+				<div style="font-size: 20px; font-weight: 700; color: #f97316">
+					{% for size in v.sizes %} {% for key, val in q.items %} {% if key == size.size_name %}{{ val }}{% endif %} {% endfor %} {% endfor %}
+				</div>
+				<div style="font-size: 10px; color: #9ca3af">ordered</div>
+			</div>
+			{% endwith %}
+		</div>
+
+		<!-- Sizes table -->
+		<table style="width: 100%; border-collapse: collapse; font-size: 13px">
+			<thead>
+				<tr style="background: #f9fafb; border-bottom: 1px solid #f3f4f6">
+					<th style="padding: 10px 18px; text-align: left; color: #6b7280; font-weight: 600">Size</th>
+					<th style="padding: 10px 18px; text-align: left; color: #6b7280; font-weight: 600">Unit Price</th>
+					<th style="padding: 10px 18px; text-align: left; color: #6b7280; font-weight: 600">Stock</th>
+					<th style="padding: 10px 18px; text-align: left; color: #6b7280; font-weight: 600">Ordered Qty</th>
+					<th style="padding: 10px 18px; text-align: right; color: #6b7280; font-weight: 600">Line Total</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for size in v.sizes %} {% for key, ordered_qty in q.items %} {% if key == size.size_name %}
+				<tr style="border-bottom: 1px solid #f9fafb">
+					<td style="padding: 10px 18px; font-weight: 500">{{ size.size_name }}</td>
+					<td style="padding: 10px 18px; color: #374151">৳{{ size.price }}</td>
+					<td style="padding: 10px 18px; color: #6b7280">{{ size.stock }}</td>
+					<td style="padding: 10px 18px">
+						<span style="background: #fff7ed; color: #f97316; font-weight: 700; padding: 2px 10px; border-radius: 6px"> × {{ ordered_qty }} </span>
+					</td>
+					<td style="padding: 10px 18px; text-align: right; font-weight: 700; color: #1f2937">
+						৳{% widthratio ordered_qty 1 1 %}
+						<!-- line total: price × qty -->
+					</td>
+				</tr>
+				{% endif %} {% endfor %} {% endfor %}
+			</tbody>
+		</table>
+
+		<!-- Weight info footer -->
+		<div style="background: #f9fafb; padding: 8px 18px; font-size: 11px; color: #9ca3af; border-top: 1px solid #f3f4f6; display: flex; gap: 16px">
+			<span>SKU ID: {{ v.weightInfo.skuId }}</span>
+			<span>Weight: {{ v.weightInfo.weight }}g</span>
+			<span>Volume: {{ v.weightInfo.volume }} cm³</span>
+		</div>
+	</div>
+	{% endwith %} {% empty %}
+	<p style="color: #9ca3af; text-align: center; padding: 40px">No variants found.</p>
+	{% endfor %}
+
+	<!-- Back button -->
+	<div style="margin-top: 24px">
+		<a
+			href="{% url 'admin:app_order_change' order.id %}"
+			style="background: #f97316; color: white; padding: 8px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px"
+		>
+			← Back to Order
+		</a>
+	</div>
+</div>
+{% endblock %}
