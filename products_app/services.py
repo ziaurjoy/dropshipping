@@ -72,6 +72,7 @@ def get_products_from_fastapi(
 
     try:
         response = requests.get(url, headers=headers, params=params, timeout=10)
+        # print('FastAPI Product Service Response:', response.json())
         return response.json()
     except Exception as e:
         print(f"FastAPI Product Service Error: {e}")

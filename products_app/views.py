@@ -219,7 +219,6 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
     authentication_classes = []
 
     def list(self, request):
-        print('===',request.headers)
         # Parse discount: "true" → True, anything else → None
         discount_param = request.query_params.get('discount')
         discount = (
@@ -243,7 +242,6 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
             request   = request,
         )
 
-        print('===',request.headers)
 
         rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
         converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)

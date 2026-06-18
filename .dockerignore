@@ -16,6 +16,6 @@ env/
 .git
 .gitignore
 docker-compose.override.yml
-.env
+# .env
 staticfiles/
 media/
