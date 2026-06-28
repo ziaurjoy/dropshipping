@@ -230,16 +230,20 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
 
+        # data = get_products_from_fastapi(
+        #     page      = int(request.query_params.get('page', 1)),
+        #     limit     = int(request.query_params.get('limit', 20)),
+        #     category  = request.query_params.get('category'),
+        #     search    = request.query_params.get('search'),
+        #     min_price = float(min_price) if min_price else None,
+        #     max_price = float(max_price) if max_price else None,
+        #     discount  = discount,
+        #     sort      = request.query_params.get('sort'),
+        #     request   = request,
+        # )
+
         data = get_products_from_fastapi(
-            page      = int(request.query_params.get('page', 1)),
-            limit     = int(request.query_params.get('limit', 20)),
-            category  = request.query_params.get('category'),
-            search    = request.query_params.get('search'),
-            min_price = float(min_price) if min_price else None,
-            max_price = float(max_price) if max_price else None,
-            discount  = discount,
-            sort      = request.query_params.get('sort'),
-            request   = request,
+            request   = request
         )
 
 

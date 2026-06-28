@@ -38,45 +38,56 @@ domain = os.environ.get('QUERY_PRODUCTS_DOMAIN', 'http://localhost:8001')
 
 
 def get_products_from_fastapi(
-    page: int = 1,
-    limit: int = 20,
-    category: str = None,
-    search: str = None,
-    min_price: float = None,
-    max_price: float = None,
-    discount: bool = None,
-    sort: str = None,
-    request=None
-):
-    url = f"{domain}/products/"
+    # page: int = 1,
+    # limit: int = 20,
+    # category: str = None,
+    # search: str = None,
+    # min_price: float = None,
+    # max_price: float = None,
+    # discount: bool = None,
+    # sort: str = None,
+    # request=None
+    request
 
-    headers = {
-        "app-key":    request.headers.get('app-key'),
-        "secret-key": request.headers.get('secret-key'),
+):
+    min_price = request.query_params.get('min_price')
+    max_price = request.query_params.get('max_price')
+
+    params = {
+        "page": int(request.query_params.get('page', 1)),
+        "lang": request.query_params.get('lang', 'en'),
+        "page_size": int(request.query_params.get('limit', 20)),
+        "cat": request.query_params.get('category'),
+        "q": request.query_params.get('search'),
+        "start_price": float(min_price) if min_price else None,
+        "end_price": float(max_price) if max_price else None,
+        "discount": request.query_params.get('discount'),
+        "sort": request.query_params.get('sort'),
     }
 
-    params = {"page": page, "limit": limit}
+    url = f"{domain}/items"
 
-    if search:
-        params["searching"] = search
-    if category:
-        params["category"] = category
-    if min_price is not None:
-        params["min_price"] = min_price
-    if max_price is not None:
-        params["max_price"] = max_price
-    if discount is not None:
-        params["discount"] = str(discount).lower()   # FastAPI expects "true"/"false"
-    if sort:
-        params["sort"] = sort
+    # headers = {
+    #     "app-key":    request.headers.get('app-key'),
+    #     "secret-key": request.headers.get('secret-key'),
+    # }
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=10)
-        # print('FastAPI Product Service Response:', response.json())
+        # response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         return response.json()
     except Exception as e:
         print(f"FastAPI Product Service Error: {e}")
-        return {"products": [], "total": 0}
+        # return {"products": [], "total": 0}
+        return {"items": {
+                        "page": "1",
+                        "real_total_results": 0,
+                        "total_results": 0,
+                        "page_size": 2,
+                        "page_count": 1,
+                        "item": []
+                    }
+                }
 
 
 
@@ -84,24 +95,87 @@ def get_products_details_from_fastapi(
     product_id: str,
     request=None
 ):
-    url = f"{domain}/products/{product_id}/"
+    url = f"{domain}/items/{product_id}/"
 
-    app_key = request.headers.get('app-key')
-    secret_key = request.headers.get('secret-key')
+    # app_key = request.headers.get('app-key')
+    # secret_key = request.headers.get('secret-key')
 
-    headers = {
-        "app-key": app_key,
-        "secret-key": secret_key,
-    }
+    # headers = {
+    #     "app-key": app_key,
+    #     "secret-key": secret_key,
+    # }
 
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        # response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, timeout=10)
         return response.json()
     except Exception as e:
         # Log error
         print(f"FastAPI Product Service Error: {e}")
-        return {"products": [], "total": 0}
+        return {
+                    "item": {
+                        "num_iid": "",
+                        "title": "",
+                        "desc_short": "",
+                        "price": "",
+                        "total_price": "",
+                        "suggestive_price": "",
+                        "orginal_price": "",
+                        "nick": "",
+                        "num": "",
+                        "min_num": "",
+                        "detail_url": "",
+                        "pic_url": "",
+                        "brand": "",
+                        "brandId": "",
+                        "rootCatId": "",
+                        "cid": "",
+                        "desc": "",
+                        "item_imgs": "",
+                        "url": "",
+                        "item_weight": "",
+                        "location": "",
+                        "post_fee": "",
+                        "express_fee": "",
+                        "ems_fee": "",
+                        "shipping_to": "",
+                        "video": "",
+                        "sample_id": "",
+                        "props_name": "",
+                        "prop_imgs": "",
+                        "prop_img": "",
+                        "properties": "",
+                        "property_alias": "",
+                        "props": "",
+                        "name": "",
+                        "value": "",
+                        "total_sold": "",
+                        "scale": "",
+                        "sellUnit": "",
+                        "skus": "",
+                        "sku": "",
+                        "sales": "",
+                        "properties_name": "",
+                        "quantity": "",
+                        "sku_id": "",
+                        "spec_id": "",
+                        "seller_id": "",
+                        "shop_id": "",
+                        "props_list": "",
+                        "0:0": "",
+                        "0:1": "",
+                        "0:2": "",
+                        "0:3": "",
+                        "0:4": "",
+                        "0:5": "",
+                        "0:6": "",
+                        "0:7": "",
+                        "priceRange": "",
+                        "priceRangeOriginal": ""
+                    },
+
+                }
 
 
 def get_category_from_fastapi(request=None):

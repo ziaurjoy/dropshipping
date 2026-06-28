@@ -21,7 +21,13 @@
 				/>
 				<div>
 					<div style="font-size: 18px; font-weight: 700; color: #1f2937">{{ order.order_number }}</div>
-					<div style="font-size: 13px; color: #6b7280; margin-top: 4px">{{ order.product_name }}</div>
+					<div style="font-size: 13px; color: #6b7280; margin-top: 4px">
+						{% if product_url %}
+						<a href="{{ product_url }}" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none; font-weight: 600">
+							{{ order.product_name|truncatewords:6 }} ↗
+						</a>
+						{% else %} {{ order.product_name|truncatewords:6 }} {% endif %}
+					</div>
 					<div style="font-size: 12px; color: #9ca3af; margin-top: 2px">Track ID: {{ order.track_id }}</div>
 				</div>
 			</div>

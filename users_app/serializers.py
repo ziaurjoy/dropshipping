@@ -231,6 +231,11 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    user_type = serializers.CharField(source='user.user_type', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    is_staff = serializers.BooleanField(source='user.is_staff', read_only=True)
+    is_superuser = serializers.BooleanField(source='user.is_superuser', read_only=True)
+
     class Meta:
         model = user_models.Profile
         fields = '__all__'
