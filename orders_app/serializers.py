@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from products_app.models import ProductImage
+# from products_app.models import ProductImage
 from .models import (
      Coupon, Payment, ShipmentSetting,
     ShippingZone, Shipment, SupportTicket
 )
-from products_app.serializers import ProductVariantSerializer
+# from products_app.serializers import ProductVariantSerializer
 from users_app.serializers import DeliveryAddressSerializer
 
 # class AddressSerializer(serializers.ModelSerializer):

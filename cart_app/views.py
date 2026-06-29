@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from products_app.services import get_products_details_from_fastapi
 # from .models import Cart, CartItem
 # from .serializers import CartSerializer, CartItemSerializer
-from products_app.models import Product
+# from products_app.models import Product
 
 
 def match_variant_sizes_with_quantity(variant, quantity):

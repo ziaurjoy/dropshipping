@@ -2,7 +2,7 @@
 import re
 from django.db import models
 from django.conf import settings
-from products_app.models import Product  # ← Change if your Product model is elsewhere
+# from products_app.models import Product  # ← Change if your Product model is elsewhere
 
 
 # class Cart(models.Model):

@@ -9,7 +9,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from products_app.models import Product, ProductVariant
+# from products_app.models import Product, ProductVariant
 # from cart_app.models import Cart  # for easy order creation
 from users_app.models import DeliveryAddress
 from . import utils

@@ -1,14 +1,14 @@
 
 
 from rest_framework import serializers
-from products_app.models import Product
+# from products_app.models import Product
 # from .models import CartItem, Cart
 
 # If you don't have ProductMinimalSerializer yet, add this simple one:
-class ProductMinimalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = ["id", "name", "price"]  # add image, etc. if you want
+# class ProductMinimalSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Product
+#         fields = ["id", "name", "price"]  # add image, etc. if you want
 
 
 # class CartItemSerializer(serializers.ModelSerializer):

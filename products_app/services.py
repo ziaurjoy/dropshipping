@@ -1,55 +1,10 @@
-# apps/products/services.py
 import os
 import requests
-from django.conf import settings
-from dotenv import load_dotenv
+
 domain = os.environ.get('QUERY_PRODUCTS_DOMAIN', 'http://localhost:8001')
 
-# def get_products_from_fastapi(
-#     page: int = 0,
-#     limit: int = 20,
-#     category: str = None,
-#     search: str = None,
-#     request=None
-# ):
-#     url = f"{domain}/products/"
 
-#     app_key = request.headers.get('app-key')
-#     secret_key = request.headers.get('secret-key')
-
-#     headers = {
-#         "app-key": app_key,
-#         "secret-key": secret_key,
-#     }
-
-#     params = {"page": page, "limit": limit}
-#     if category:
-#         params["category"] = category
-#     if search:
-#         params["searching"] = search
-
-#     try:
-#         response = requests.get(url, headers=headers, params=params, timeout=10)
-#         return response.json()
-#     except Exception as e:
-#         # Log error
-#         print(f"FastAPI Product Service Error: {e}")
-#         return {"products": [], "total": 0}
-
-
-def get_products_from_fastapi(
-    # page: int = 1,
-    # limit: int = 20,
-    # category: str = None,
-    # search: str = None,
-    # min_price: float = None,
-    # max_price: float = None,
-    # discount: bool = None,
-    # sort: str = None,
-    # request=None
-    request
-
-):
+def get_products_from_fastapi(request):
     min_price = request.query_params.get('min_price')
     max_price = request.query_params.get('max_price')
 
@@ -67,115 +22,93 @@ def get_products_from_fastapi(
 
     url = f"{domain}/items"
 
-    # headers = {
-    #     "app-key":    request.headers.get('app-key'),
-    #     "secret-key": request.headers.get('secret-key'),
-    # }
-
     try:
-        # response = requests.get(url, headers=headers, params=params, timeout=10)
         response = requests.get(url, params=params, timeout=10)
         return response.json()
     except Exception as e:
         print(f"FastAPI Product Service Error: {e}")
-        # return {"products": [], "total": 0}
-        return {"items": {
-                        "page": "1",
-                        "real_total_results": 0,
-                        "total_results": 0,
-                        "page_size": 2,
-                        "page_count": 1,
-                        "item": []
-                    }
-                }
+        return {
+            "items": {
+                "page": "1",
+                "real_total_results": 0,
+                "total_results": 0,
+                "page_size": 2,
+                "page_count": 1,
+                "item": []
+            }
+        }
 
 
-
-def get_products_details_from_fastapi(
-    product_id: str,
-    request=None
-):
+def get_products_details_from_fastapi(product_id: str, request=None):
     url = f"{domain}/items/{product_id}/"
 
-    # app_key = request.headers.get('app-key')
-    # secret_key = request.headers.get('secret-key')
-
-    # headers = {
-    #     "app-key": app_key,
-    #     "secret-key": secret_key,
-    # }
-
-
     try:
-        # response = requests.get(url, headers=headers, timeout=10)
         response = requests.get(url, timeout=10)
         return response.json()
     except Exception as e:
-        # Log error
         print(f"FastAPI Product Service Error: {e}")
         return {
-                    "item": {
-                        "num_iid": "",
-                        "title": "",
-                        "desc_short": "",
-                        "price": "",
-                        "total_price": "",
-                        "suggestive_price": "",
-                        "orginal_price": "",
-                        "nick": "",
-                        "num": "",
-                        "min_num": "",
-                        "detail_url": "",
-                        "pic_url": "",
-                        "brand": "",
-                        "brandId": "",
-                        "rootCatId": "",
-                        "cid": "",
-                        "desc": "",
-                        "item_imgs": "",
-                        "url": "",
-                        "item_weight": "",
-                        "location": "",
-                        "post_fee": "",
-                        "express_fee": "",
-                        "ems_fee": "",
-                        "shipping_to": "",
-                        "video": "",
-                        "sample_id": "",
-                        "props_name": "",
-                        "prop_imgs": "",
-                        "prop_img": "",
-                        "properties": "",
-                        "property_alias": "",
-                        "props": "",
-                        "name": "",
-                        "value": "",
-                        "total_sold": "",
-                        "scale": "",
-                        "sellUnit": "",
-                        "skus": "",
-                        "sku": "",
-                        "sales": "",
-                        "properties_name": "",
-                        "quantity": "",
-                        "sku_id": "",
-                        "spec_id": "",
-                        "seller_id": "",
-                        "shop_id": "",
-                        "props_list": "",
-                        "0:0": "",
-                        "0:1": "",
-                        "0:2": "",
-                        "0:3": "",
-                        "0:4": "",
-                        "0:5": "",
-                        "0:6": "",
-                        "0:7": "",
-                        "priceRange": "",
-                        "priceRangeOriginal": ""
-                    },
-
-                }
+            "item": {
+                "num_iid": "",
+                "title": "",
+                "desc_short": "",
+                "price": "",
+                "total_price": "",
+                "suggestive_price": "",
+                "orginal_price": "",
+                "nick": "",
+                "num": "",
+                "min_num": "",
+                "detail_url": "",
+                "pic_url": "",
+                "brand": "",
+                "brandId": "",
+                "rootCatId": "",
+                "cid": "",
+                "desc": "",
+                "item_imgs": "",
+                "url": "",
+                "item_weight": "",
+                "location": "",
+                "post_fee": "",
+                "express_fee": "",
+                "ems_fee": "",
+                "shipping_to": "",
+                "video": "",
+                "sample_id": "",
+                "props_name": "",
+                "prop_imgs": "",
+                "prop_img": "",
+                "properties": "",
+                "property_alias": "",
+                "props": "",
+                "name": "",
+                "value": "",
+                "total_sold": "",
+                "scale": "",
+                "sellUnit": "",
+                "skus": "",
+                "sku": "",
+                "sales": "",
+                "properties_name": "",
+                "quantity": "",
+                "sku_id": "",
+                "spec_id": "",
+                "seller_id": "",
+                "shop_id": "",
+                "props_list": "",
+                "0:0": "",
+                "0:1": "",
+                "0:2": "",
+                "0:3": "",
+                "0:4": "",
+                "0:5": "",
+                "0:6": "",
+                "0:7": "",
+                "priceRange": "",
+                "priceRangeOriginal": ""
+            }
+        }
 
 
 def get_category_from_fastapi(request=None):
@@ -193,6 +126,5 @@ def get_category_from_fastapi(request=None):
         response = requests.get(url, headers=headers, timeout=10)
         return response.json()
     except Exception as e:
-        # Log error
         print(f"FastAPI Product Service Error: {e}")
         return {"products": [], "total": 0}
