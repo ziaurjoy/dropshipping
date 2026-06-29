@@ -9,7 +9,7 @@ services:
       - DJANGO_PORT=${APP_PORT:-8000}
       - DB_HOST=${DATABASE_URL}
       - REDIS_HOST=redis
-      - QUERY_PRODUCTS_DOMAIN=http://product-aggregation-app:8080
+      - QUERY_PRODUCTS_DOMAIN=${QUERY_PRODUCTS_DOMAIN}
     ports:
       - '${APP_PORT}:${APP_PORT}'
     command: >
