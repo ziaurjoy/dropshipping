@@ -2,6 +2,7 @@ import copy
 import re
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from django.core.cache import cache
 
 from products_app.models import SettingExchangeRate, Category, Subcategory, Item
 from products_app.serializers import SettingExchangeRateSerializer
@@ -93,16 +94,32 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
     authentication_classes = []
 
     def list(self, request):
+        cache_key = f"product_list_1688_{request.GET.urlencode()}"
+        cached_data = cache.get(cache_key)
+        print('cache_key:', cache_key)
+        print('cached_data:', cached_data)
+        if cached_data is not None:
+            return Response(cached_data)
+
         data = get_products_from_fastapi(request=request)
         rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
         converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)
+
+        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
 
     def retrieve(self, request, pk=None):
         print('Retrieving product details for ID:', pk)
+        cache_key = f"product_detail_1688_{pk}_{request.GET.urlencode()}"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+
         data = get_products_details_from_fastapi(product_id=pk, request=request)
         cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
         converted = convert_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
+
+        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
 
 
@@ -146,7 +163,7 @@ class CategoryViewSet(viewsets.ViewSet):
                 "icon": cat.icon,
                 "subcategories": subcategories_data
             })
-        
+
         response_data = {
             "_id": "69df35f13c51f8b91387d4e2",
             "source": "1688.com",

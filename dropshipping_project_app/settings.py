@@ -305,6 +305,30 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False") == "True"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 
 
+# Redis Cache Configuration
+REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
+REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+
+# Fallback to localhost if 'redis' is not resolvable (e.g. running outside Docker container network)
+if REDIS_HOST == "redis":
+    import socket
+    try:
+        socket.gethostbyname("redis")
+    except socket.gaierror:
+        REDIS_HOST = "127.0.0.1"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+
+
 
 
 
