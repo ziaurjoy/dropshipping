@@ -128,3 +128,50 @@ def get_category_from_fastapi(request=None):
     except Exception as e:
         print(f"FastAPI Product Service Error: {e}")
         return {"products": [], "total": 0}
+
+
+def get_products_by_image_from_fastapi(request):
+    imgid = request.query_params.get('imgid')
+    page = request.query_params.get('page', 1)
+    limit = request.query_params.get('limit')
+    if not limit:
+        limit = request.query_params.get('page_size', 20)
+    lang = request.query_params.get('lang', 'en')
+    min_price = request.query_params.get('min_price')
+    max_price = request.query_params.get('max_price')
+    category = request.query_params.get('category')
+    sort = request.query_params.get('sort')
+
+    params = {
+        "imgid": imgid,
+        "page": int(page) if page else 1,
+        "page_size": int(limit) if limit else 20,
+        "lang": lang if lang else "en",
+    }
+
+    if min_price:
+        params["start_price"] = float(min_price)
+    if max_price:
+        params["end_price"] = float(max_price)
+    if category:
+        params["cat"] = int(category)
+    if sort:
+        params["sort"] = sort
+
+    url = f"{domain}/item_search_img"
+
+    try:
+        response = requests.get(url, params=params, timeout=15)
+        return response.json()
+    except Exception as e:
+        print(f"FastAPI Image Search Service Error: {e}")
+        return {
+            "items": {
+                "page": str(page),
+                "real_total_results": 0,
+                "total_results": 0,
+                "page_size": int(limit) if limit else 20,
+                "page_count": 1,
+                "item": []
+            }
+        }

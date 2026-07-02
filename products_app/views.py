@@ -2,6 +2,8 @@ import copy
 import re
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from django.core.cache import cache
 
 from products_app.models import SettingExchangeRate, Category, Subcategory, Item
@@ -9,7 +11,8 @@ from products_app.serializers import SettingExchangeRateSerializer
 from products_app.services import (
     get_category_from_fastapi,
     get_products_details_from_fastapi,
-    get_products_from_fastapi
+    get_products_from_fastapi,
+    get_products_by_image_from_fastapi
 )
 
 
@@ -74,11 +77,30 @@ def convert_list_currency_to_bdt(data, cny_to_bdt_rate: float = 16.5):
       - paginated wrapper:   { "results": [...], "total": 100 }
       - other wrappers:      { "products": [...] }  /  { "items": [...] }
     """
+    cny_to_bdt_rate = float(cny_to_bdt_rate)
     if isinstance(data, list):
         return [convert_currency_to_bdt(item, cny_to_bdt_rate) for item in data]
 
     if isinstance(data, dict):
         data = copy.deepcopy(data)
+
+        # Check if it has {"items": {"item": [...]}} structure (from FastAPI 1688 endpoints)
+        if "items" in data and isinstance(data["items"], dict) and "item" in data["items"] and isinstance(data["items"]["item"], list):
+            for item in data["items"]["item"]:
+                if "price" in item and not str(item["price"]).startswith("৳"):
+                    try:
+                        price_val = float(item["price"])
+                        item["price"] = f"৳{price_val * cny_to_bdt_rate:.2f}"
+                    except (ValueError, TypeError):
+                        pass
+                if "promotion_price" in item and not str(item["promotion_price"]).startswith("৳"):
+                    try:
+                        promo_val = float(item["promotion_price"])
+                        item["promotion_price"] = f"৳{promo_val * cny_to_bdt_rate:.2f}"
+                    except (ValueError, TypeError):
+                        pass
+            return data
+
         for key in ("results", "products", "items", "data"):
             if key in data and isinstance(data[key], list):
                 data[key] = [convert_currency_to_bdt(item, cny_to_bdt_rate) for item in data[key]]
@@ -121,6 +143,71 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
 
         cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.AllowAny])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def item_search_img_view(request):
+    img_url = None
+
+    if request.method == 'POST':
+        image_file = request.FILES.get('image')
+        if not image_file:
+            return Response(
+                {"error": "No image file provided under the key 'image'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1. Save image to backend media/search_images directory
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
+        import uuid
+        import os
+
+        # Generate a unique name to avoid conflicts
+        ext = os.path.splitext(image_file.name)[1]
+        unique_filename = f"{uuid.uuid4()}{ext}"
+        
+        path = default_storage.save(f"search_images/{unique_filename}", ContentFile(image_file.read()))
+        img_url = request.build_absolute_uri(default_storage.url(path))
+        print("Saved uploaded image to:", img_url)
+
+        # 2. Update query params with the saved img_url and POST body parameters
+        mutable_get = request._request.GET.copy()
+        mutable_get['imgid'] = img_url
+        
+        # Merge pagination and filtering parameters from POST body into query params
+        for key in ['page', 'limit', 'page_size', 'lang', 'min_price', 'max_price', 'category', 'sort']:
+            if key in request.data:
+                mutable_get[key] = str(request.data[key])
+                
+        request._request.GET = mutable_get
+
+    # For both GET and POST requests: perform image search using 'imgid'
+    imgid = request.query_params.get('imgid')
+    if not imgid:
+        return Response(
+            {"error": "imgid query parameter is required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    cache_key = f"product_img_search_1688_{request.GET.urlencode()}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        if img_url and isinstance(cached_data, dict):
+            cached_data["uploaded_image_url"] = img_url
+        return Response(cached_data)
+
+    data = get_products_by_image_from_fastapi(request=request)
+    rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
+    converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)
+
+    if img_url and isinstance(converted, dict):
+        converted["uploaded_image_url"] = img_url
+
+    cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
+    return Response(converted)
 
 
 class Categories1688ViewSet(viewsets.ViewSet):
