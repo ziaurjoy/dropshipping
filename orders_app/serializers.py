@@ -102,6 +102,8 @@ from users_app.models import DeliveryAddress
 
 class PlaceOrderSerializer(serializers.Serializer):
     address_id = serializers.IntegerField()
+    shipping_charge = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0.0)
+    payment_method = serializers.CharField(max_length=20, required=False, default='cod')
 
     def validate_address_id(self, value):
         user = self.context['request'].user
@@ -118,42 +120,76 @@ class PlaceOrderSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        user       = self.context['request'].user
-        address    = DeliveryAddress.objects.get(id=validated_data['address_id'])
-        cart_items = Cart.objects.filter(user=user)
+        user            = self.context['request'].user
+        address         = DeliveryAddress.objects.get(id=validated_data['address_id'])
+        shipping_charge = validated_data.get('shipping_charge', 0.0)
+        payment_method  = validated_data.get('payment_method', 'cod')
+        cart_items      = Cart.objects.filter(user=user)
 
-        orders = []
+        items_list = []
+        subtotal = 0.0
         for cart in cart_items:
-            # compute total from variants JSONField
-            total = 0
+            # compute subtotal for this item
+            item_total = 0.0
             for entry in cart.variants:
                 quantity_map = entry.get('quantity', {})
                 sizes        = entry.get('variant', {}).get('sizes', [])
                 for size in sizes:
                     qty   = quantity_map.get(size['size_name'], 0)
                     price = float(size.get('price', 0))
-                    total += qty * price
+                    item_total += qty * price
+            subtotal += item_total
 
-            order = Order.objects.create(
-                user            = user,
-                address         = address,
-                product_id      = cart.product_id,
-                product_name    = cart.product_name,
-                product_image   = cart.product_image,
-                variants        = cart.variants,       # copy JSON as-is
-                shipping_method = cart.shipping_method,
-                total_price     = round(total, 2),
-            )
-            orders.append(order)
+            items_list.append({
+                'product_id': cart.product_id,
+                'product_name': cart.product_name,
+                'product_image': cart.product_image,
+                'variants': cart.variants,
+                'shipping_method': cart.shipping_method,
+                'item_total': round(item_total, 2)
+            })
+
+        first_cart = cart_items.first()
+        order = Order.objects.create(
+            user            = user,
+            address         = address,
+            # Fallbacks for backward compatibility
+            product_id      = first_cart.product_id if first_cart else "",
+            product_name    = first_cart.product_name if first_cart else "",
+            product_image   = first_cart.product_image if first_cart else "",
+            variants        = first_cart.variants if first_cart else [],
+            shipping_method = first_cart.shipping_method if first_cart else "air",
+
+            # Consolidated fields
+            items           = items_list,
+            shipping_charge = shipping_charge,
+            total_price     = round(subtotal + float(shipping_charge), 2),
+        )
+
+        # Create shipment
+        Shipment.objects.create(order=order)
+
+        # Create payment
+        Payment.objects.create(
+            order=order,
+            method=payment_method,
+            amount=order.total_price,
+            status='success' if payment_method == 'card' else 'pending'
+        )
 
         # ── remove cart after order placed ──────────────────
-        cart_items.delete()
+        # cart_items.delete()
 
-        return orders
+        return [order]
 
 
 class OrderResponseSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_method = serializers.SerializerMethodField(read_only=True)
+
+    def get_payment_method(self, obj):
+        payment = obj.payments.first()
+        return payment.method if payment else 'cod'
 
     class Meta:
         model  = Order
@@ -167,7 +203,10 @@ class OrderResponseSerializer(serializers.ModelSerializer):
             'shipping_method',
             'status',
             'status_display',
+            'shipping_charge',
+            'payment_method',
             'total_price',
+            'items',
             'created_at',
             'updated_at',
         ]
@@ -176,6 +215,12 @@ class OrderResponseSerializer(serializers.ModelSerializer):
 class OrderDetailsResponseSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     address = DeliveryAddressSerializer(read_only=True)
+    payment_method = serializers.SerializerMethodField(read_only=True)
+
+    def get_payment_method(self, obj):
+        payment = obj.payments.first()
+        return payment.method if payment else 'cod'
+
     class Meta:
         model  = Order
         fields = [
@@ -189,7 +234,10 @@ class OrderDetailsResponseSerializer(serializers.ModelSerializer):
             'shipping_method',
             'status',
             'status_display',
+            'shipping_charge',
+            'payment_method',
             'total_price',
+            'items',
             'created_at',
             'updated_at',
         ]

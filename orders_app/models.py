@@ -97,6 +97,7 @@ class Order(models.Model):
     product_name = models.CharField(max_length=500)
     product_image = models.URLField(max_length=1000)
     variants = models.JSONField(default=list)
+    items = models.JSONField(default=list)
 
     shipping_method = models.CharField(
         max_length=10,
@@ -111,6 +112,7 @@ class Order(models.Model):
     )
 
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
