@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from django.core.cache import cache
 
 from products_app.models import SettingExchangeRate, Category, Subcategory, Item
-from products_app.serializers import SettingExchangeRateSerializer
+from products_app.serializers import SettingExchangeRateSerializer, CategorySerializer, SubcategorySerializer
 from products_app.services import (
     get_category_from_fastapi,
     get_products_details_from_fastapi,
@@ -225,11 +225,28 @@ class SettingExchangeRateViewSet(viewsets.ModelViewSet):
     serializer_class = SettingExchangeRateSerializer
 
 
-class CategoryViewSet(viewsets.ViewSet):
+class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    filterset_fields = ['name']
+    search_fields = ['name']
+    ordering_fields = ['id', 'name']
 
-    def list(self, request):
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get('view') == 'admin':
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({
+                'success': True,
+                'count': queryset.count(),
+                'data': serializer.data
+            })
+
         categories_qs = Category.objects.prefetch_related('subcategories__items').all()
         categories_data = []
         for cat in categories_qs:

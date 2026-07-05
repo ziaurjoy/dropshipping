@@ -25,6 +25,9 @@ class UsersViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.UsersSerializer
     permission_classes = [permissions.AllowAny]
     queryset = models.User.objects.all()
+    filterset_fields = ['is_verified', 'user_type']
+    search_fields = ['email', 'first_name', 'last_name', 'username']
+    ordering_fields = ['date_joined', 'id']
 
 
 

@@ -302,9 +302,13 @@ class DeliveryAddressViewSet(viewsets.ModelViewSet):
 
 
 # Other simple read/write ViewSets
-class CouponViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Coupon.objects.filter(is_active=True)
+class CouponViewSet(viewsets.ModelViewSet):
+    queryset = Coupon.objects.all()
     serializer_class = CouponSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['is_active', 'discount_type']
+    search_fields = ['code']
+    ordering_fields = ['created_at', 'discount_value', 'min_order_amount', 'valid_until']
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -416,10 +420,15 @@ from .serializers import PlaceOrderSerializer, OrderResponseSerializer
 class OrderViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = OrderResponseSerializer
-    http_method_names  = ['get', 'post']        # no put/patch/delete
+    http_method_names  = ['get', 'post', 'patch', 'delete']
+    filterset_fields   = ['status', 'shipping_method']
+    search_fields      = ['order_number', 'product_name', 'address__full_name', 'address__phone']
+    ordering_fields    = ['created_at', 'total_price', 'order_number']
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return Order.objects.all().order_by('-created_at')
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')
 
     def get_serializer_class(self):
         if self.action == 'create':
