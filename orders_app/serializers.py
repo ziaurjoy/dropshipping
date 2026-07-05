@@ -178,7 +178,7 @@ class PlaceOrderSerializer(serializers.Serializer):
         )
 
         # ── remove cart after order placed ──────────────────
-        # cart_items.delete()
+        cart_items.delete()
 
         return [order]
 

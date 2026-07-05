@@ -12,13 +12,15 @@ def get_products_from_fastapi(request):
         "page": int(request.query_params.get('page', 1)),
         "lang": request.query_params.get('lang', 'en'),
         "page_size": int(request.query_params.get('limit', 20)),
-        "cat": request.query_params.get('category'),
+        # "cat": request.query_params.get('category'),
         "q": request.query_params.get('search'),
+
         "start_price": float(min_price) if min_price else None,
         "end_price": float(max_price) if max_price else None,
         "discount": request.query_params.get('discount'),
         "sort": request.query_params.get('sort'),
     }
+    print('Request params for FastAPI:', params)  # Debugging line
 
     url = f"{domain}/items"
 

@@ -116,18 +116,18 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
     authentication_classes = []
 
     def list(self, request):
-        cache_key = f"product_list_1688_{request.GET.urlencode()}"
-        cached_data = cache.get(cache_key)
-        print('cache_key:', cache_key)
-        print('cached_data:', cached_data)
-        if cached_data is not None:
-            return Response(cached_data)
+        # cache_key = f"product_list_1688_{request.GET.urlencode()}"
+        # cached_data = cache.get(cache_key)
+        # print('cache_key:', cache_key)
+        # print('cached_data:', cached_data)
+        # if cached_data is not None:
+        #     return Response(cached_data)
 
         data = get_products_from_fastapi(request=request)
         rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
         converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)
 
-        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
+        # cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
 
     def retrieve(self, request, pk=None):
@@ -168,7 +168,7 @@ def item_search_img_view(request):
         # Generate a unique name to avoid conflicts
         ext = os.path.splitext(image_file.name)[1]
         unique_filename = f"{uuid.uuid4()}{ext}"
-        
+
         path = default_storage.save(f"search_images/{unique_filename}", ContentFile(image_file.read()))
         img_url = request.build_absolute_uri(default_storage.url(path))
         print("Saved uploaded image to:", img_url)
@@ -176,12 +176,12 @@ def item_search_img_view(request):
         # 2. Update query params with the saved img_url and POST body parameters
         mutable_get = request._request.GET.copy()
         mutable_get['imgid'] = img_url
-        
+
         # Merge pagination and filtering parameters from POST body into query params
         for key in ['page', 'limit', 'page_size', 'lang', 'min_price', 'max_price', 'category', 'sort']:
             if key in request.data:
                 mutable_get[key] = str(request.data[key])
-                
+
         request._request.GET = mutable_get
 
     # For both GET and POST requests: perform image search using 'imgid'
