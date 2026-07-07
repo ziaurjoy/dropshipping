@@ -29,6 +29,17 @@ class UsersViewSet(viewsets.ModelViewSet):
     search_fields = ['email', 'first_name', 'last_name', 'username']
     ordering_fields = ['date_joined', 'id']
 
+class ReadOnlyCustomer(viewsets.ReadOnlyModelViewSet):
+    serializer_class = serializers.IsReadOnlyForRegularUsers
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = models.User.objects.all()
+    filterset_fields = ['is_verified', 'user_type']
+    search_fields = ['email', 'first_name', 'last_name', 'username']
+    ordering_fields = ['date_joined', 'id']
+
+    def get_queryset(self):
+        return super().get_queryset().filter(user_type='CUSTOMER')
+
 
 
 class RegisterUserView(views.APIView):

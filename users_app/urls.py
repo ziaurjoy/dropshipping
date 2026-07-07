@@ -44,6 +44,7 @@ urlpatterns = [
 router.register(r'delivery-addresses', views.DeliveryAddressViewSet, basename='deliveryaddress')
 router.register(r'integration-credentials', views.IntegrationCredentialViewSet, basename='integrationcredential')
 router.register(r'users', views.UsersViewSet, basename='user')
+router.register(r'customer', views.ReadOnlyCustomer, basename='customer')
 
 
 

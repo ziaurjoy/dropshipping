@@ -1,5 +1,6 @@
 
 from rest_framework import serializers
+from products_app.permissions import IsReadOnlyForRegularUsers
 from . import models as user_models
 from . import utils
 
@@ -7,6 +8,13 @@ class UsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = user_models.User
         fields = '__all__'
+
+
+class IsReadOnlyForRegularUsers(serializers.ModelSerializer):
+    class Meta:
+        model = user_models.User
+        # fields = '__all__'
+        exclude = ['password']  # Exclude password field for regular users
 
 
 
