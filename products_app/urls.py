@@ -4,6 +4,7 @@ from products_app.views import (
     Categories1688ViewSet,
     ProductFrom1688ViewSet,
     CategoryViewSet,
+    SettingExchangeRateViewSet,
     item_search_img_view
 )
 
@@ -11,6 +12,7 @@ router = DefaultRouter()
 router.register(r'product-from-1688', ProductFrom1688ViewSet, basename='product-from-1688')
 # router.register(r'categories-from-1688', Categories1688ViewSet, basename='categories-from-1688')
 router.register(r'categories', CategoryViewSet, basename='categories')
+router.register(r'exchange-rates', SettingExchangeRateViewSet, basename='exchange-rates')
 
 urlpatterns = [
     path('item-search-img/', item_search_img_view, name='item-search-img'),

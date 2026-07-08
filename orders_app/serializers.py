@@ -185,6 +185,7 @@ class PlaceOrderSerializer(serializers.Serializer):
 
 class OrderResponseSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    address = DeliveryAddressSerializer(read_only=True)
     payment_method = serializers.SerializerMethodField(read_only=True)
 
     def get_payment_method(self, obj):
@@ -199,6 +200,7 @@ class OrderResponseSerializer(serializers.ModelSerializer):
             'product_id',
             'product_name',
             'product_image',
+            'address',
             'variants',
             'shipping_method',
             'status',
