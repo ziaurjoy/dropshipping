@@ -10,7 +10,7 @@ def get_products_from_fastapi(request):
 
     params = {
         "page": int(request.query_params.get('page', 1)),
-        "lang": request.query_params.get('lang', 'en'),
+        "lang": request.query_params.get('lang', 'zh-CN'),
         "page_size": int(request.query_params.get('limit', 20)),
         # "cat": request.query_params.get('category'),
         "q": request.query_params.get('search'),
@@ -138,7 +138,7 @@ def get_products_by_image_from_fastapi(request):
     limit = request.query_params.get('limit')
     if not limit:
         limit = request.query_params.get('page_size', 20)
-    lang = request.query_params.get('lang', 'en')
+    lang = request.query_params.get('lang', 'zh-CN')
     min_price = request.query_params.get('min_price')
     max_price = request.query_params.get('max_price')
     category = request.query_params.get('category')
@@ -148,7 +148,7 @@ def get_products_by_image_from_fastapi(request):
         "imgid": imgid,
         "page": int(page) if page else 1,
         "page_size": int(limit) if limit else 20,
-        "lang": lang if lang else "en",
+        "lang": lang if lang else "zh-CN",
     }
 
     if min_price:
