@@ -6,8 +6,8 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from django.core.cache import cache
 
-from products_app.models import SettingExchangeRate, Category, Subcategory, Item
-from products_app.serializers import SettingExchangeRateSerializer, CategorySerializer, SubcategorySerializer
+from products_app.models import SettingExchangeRate, Category, Subcategory, Item, SearchSuggestion
+from products_app.serializers import SettingExchangeRateSerializer, CategorySerializer, SubcategorySerializer, SearchSuggestionSerializer
 from products_app.services import (
     get_category_from_fastapi,
     get_products_details_from_fastapi,
@@ -28,7 +28,7 @@ def convert_currency_to_bdt(data: dict, cny_to_bdt_rate: float = 16.5) -> dict:
     USD_TO_BDT = 110.0
 
     # auto-detect wrapper
-    product = data.get("product", data)
+    product = data.get("product", data.get("item", data))
 
     def replace_cny(text: str) -> str:
         return re.sub(
@@ -40,15 +40,27 @@ def convert_currency_to_bdt(data: dict, cny_to_bdt_rate: float = 16.5) -> dict:
     # 1. top-level price
     p = product.get("price", {})
     if p:
-        raw = re.sub(r'[^\d.]', '', (p.get("amount", "") + p.get("unit", "")))
-        if raw:
-            p["currency"] = "৳"
-            p["amount"]   = f"{float(raw) * cny_to_bdt_rate:.2f}"
-            p["unit"]     = ""
-        overseas = p.get("overseas", "")
-        if overseas:
-            usd = re.sub(r'[^\d.]', '', overseas)
-            p["overseas"] = f"৳{float(usd) * USD_TO_BDT:.2f}" if usd else overseas
+        if isinstance(p, dict):
+            raw = re.sub(r'[^\d.]', '', (p.get("amount", "") + p.get("unit", "")))
+            if raw:
+                p["currency"] = "৳"
+                p["amount"]   = f"{float(raw) * cny_to_bdt_rate:.2f}"
+                p["unit"]     = ""
+            overseas = p.get("overseas", "")
+            if overseas:
+                usd = re.sub(r'[^\d.]', '', overseas)
+                p["overseas"] = f"৳{float(usd) * USD_TO_BDT:.2f}" if usd else overseas
+        else:
+            # Handle float/int/str top-level price and other related price fields
+            for price_key in ("price", "orginal_price", "suggestive_price", "total_price"):
+                val = product.get(price_key)
+                if val is not None and isinstance(val, (int, float, str)):
+                    try:
+                        clean_str = re.sub(r'[^\d.]', '', str(val))
+                        if clean_str:
+                            product[price_key] = float(clean_str) * cny_to_bdt_rate
+                    except (ValueError, TypeError):
+                        pass
 
     # 2. cart
     cart = (product.get("details", {})
@@ -133,15 +145,15 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         print('Retrieving product details for ID:', pk)
         cache_key = f"product_detail_1688_{pk}_{request.GET.urlencode()}"
-        cached_data = cache.get(cache_key)
-        if cached_data is not None:
-            return Response(cached_data)
+        # cached_data = cache.get(cache_key)
+        # if cached_data is not None:
+        #     return Response(cached_data)
 
         data = get_products_details_from_fastapi(product_id=pk, request=request)
         cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
         converted = convert_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
 
-        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
+        # cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
 
 
@@ -275,3 +287,18 @@ class CategoryViewSet(viewsets.ModelViewSet):
             "categories": categories_data
         }
         return Response(response_data)
+
+
+class SearchSuggestionViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    queryset = SearchSuggestion.objects.all()
+    serializer_class = SearchSuggestionSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        q = self.request.query_params.get('q', None)
+        if q:
+            queryset = queryset.filter(keyword__icontains=q)
+        return queryset[:10]

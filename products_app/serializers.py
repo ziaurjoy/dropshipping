@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from products_app.models import SettingExchangeRate, Category, Subcategory
+from products_app.models import SettingExchangeRate, Category, Subcategory, SearchSuggestion
 
 class SettingExchangeRateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,3 +17,9 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'category_id', 'name', 'icon', 'subcategories']
+
+
+class SearchSuggestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SearchSuggestion
+        fields = ['id', 'keyword']

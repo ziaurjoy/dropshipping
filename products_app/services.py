@@ -42,8 +42,7 @@ def get_products_from_fastapi(request):
 
 
 def get_products_details_from_fastapi(product_id: str, request=None):
-    url = f"{domain}/items/{product_id}/"
-
+    url = f"{domain}/items/{product_id}/?lang={request.query_params.get('lang', 'zh-CN') if request else 'zh-CN'}"
     try:
         response = requests.get(url, timeout=10)
         return response.json()

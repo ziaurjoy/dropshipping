@@ -52,3 +52,14 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class SearchSuggestion(models.Model):
+    keyword = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["keyword"]
+
+    def __str__(self):
+        return self.keyword
