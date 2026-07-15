@@ -5,6 +5,37 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from django.core.cache import cache
+import hashlib
+
+
+def get_session_id(request):
+    """
+    Get or create a session key for the user, regardless of whether they are authenticated or anonymous.
+    If the user is authenticated, we use their user ID.
+    Otherwise, we use the Django session key, creating/saving it if it doesn't exist yet.
+    """
+    if request.user and request.user.is_authenticated:
+        return f"user_{request.user.id}"
+    
+    session_key = request.session.session_key
+    if not session_key:
+        request.session.create()
+        session_key = request.session.session_key
+        
+    return f"anon_{session_key}"
+
+
+def get_cache_key(prefix, session_id, query_params):
+    """
+    Generate a session-scoped and query-param hashed cache key.
+    """
+    # Filter out empty or none values to make keys consistent
+    filtered_params = {k: v for k, v in query_params.items() if v is not None and v != ''}
+    sorted_params = sorted(filtered_params.items())
+    params_str = "&".join(f"{k}={v}" for k, v in sorted_params)
+    params_hash = hashlib.md5(params_str.encode('utf-8')).hexdigest()
+    return f"session_cache:{prefix}:{session_id}:{params_hash}"
+
 
 from products_app.models import SettingExchangeRate, Category, Subcategory, Item, SearchSuggestion
 from products_app.serializers import SettingExchangeRateSerializer, CategorySerializer, SubcategorySerializer, SearchSuggestionSerializer
@@ -128,33 +159,38 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
     authentication_classes = []
 
     def list(self, request):
-        # cache_key = f"product_list_1688_{request.GET.urlencode()}"
-        # cached_data = cache.get(cache_key)
-        # print('cache_key:', cache_key)
-        # print('cached_data:', cached_data)
-        # if cached_data is not None:
-        #     return Response(cached_data)
+        session_id = get_session_id(request)
+        cache_key = get_cache_key("product_list_1688", session_id, request.GET)
+        cached_data = cache.get(cache_key)
+        print('cache_key:', cache_key)
+        if cached_data is not None:
+            print('Cache hit!')
+            return Response(cached_data)
 
         data = get_products_from_fastapi(request=request)
         rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
         converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)
 
-        # cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
+        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
 
     def retrieve(self, request, pk=None):
         print('Retrieving product details for ID:', pk)
-        cache_key = f"product_detail_1688_{pk}_{request.GET.urlencode()}"
-        # cached_data = cache.get(cache_key)
-        # if cached_data is not None:
-        #     return Response(cached_data)
+        session_id = get_session_id(request)
+        cache_key = get_cache_key(f"product_detail_1688:{pk}", session_id, request.GET)
+        cached_data = cache.get(cache_key)
+        print('cache_key:', cache_key)
+        if cached_data is not None:
+            print('Cache hit!')
+            return Response(cached_data)
 
         data = get_products_details_from_fastapi(product_id=pk, request=request)
         cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
         converted = convert_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
 
-        # cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
+        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
+
 
 
 @api_view(['GET', 'POST'])
@@ -204,9 +240,12 @@ def item_search_img_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    cache_key = f"product_img_search_1688_{request.GET.urlencode()}"
+    session_id = get_session_id(request)
+    cache_key = get_cache_key("product_img_search_1688", session_id, request.GET)
     cached_data = cache.get(cache_key)
+    print('cache_key:', cache_key)
     if cached_data is not None:
+        print('Cache hit!')
         if img_url and isinstance(cached_data, dict):
             cached_data["uploaded_image_url"] = img_url
         return Response(cached_data)
@@ -220,6 +259,7 @@ def item_search_img_view(request):
 
     cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
     return Response(converted)
+
 
 
 class Categories1688ViewSet(viewsets.ViewSet):
