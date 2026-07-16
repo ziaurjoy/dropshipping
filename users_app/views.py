@@ -8,8 +8,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status, viewsets, permissions, generics, views
-
+from rest_framework import status, viewsets, permissions, generics, views, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from products_app.permissions import RBACPermission
 
 
@@ -25,7 +25,8 @@ class UsersViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.UsersSerializer
     permission_classes = [permissions.AllowAny]
     queryset = models.User.objects.all()
-    filterset_fields = ['is_verified', 'user_type']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_verified', 'is_active', 'user_type']
     search_fields = ['email', 'first_name', 'last_name', 'username']
     ordering_fields = ['date_joined', 'id']
 
@@ -33,7 +34,8 @@ class ReadOnlyCustomer(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.IsReadOnlyForRegularUsers
     permission_classes = [permissions.IsAuthenticated]
     queryset = models.User.objects.all()
-    filterset_fields = ['is_verified', 'user_type']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_verified', 'is_active', 'user_type']
     search_fields = ['email', 'first_name', 'last_name', 'username']
     ordering_fields = ['date_joined', 'id']
 
@@ -443,3 +445,69 @@ class IntegrationCredentialViewSet(viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         """GET single (same as list since only one per user)"""
         return self.list(request)
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.NotificationSerializer
+
+    def get_queryset(self):
+        queryset = models.Notification.objects.filter(user=self.request.user)
+        # Filter by is_read=False by default (unread state), unless query param overrides it
+        is_read_param = self.request.query_params.get('is_read', None)
+        if is_read_param is not None:
+            is_read = is_read_param.lower() in ['true', '1']
+            queryset = queryset.filter(is_read=is_read)
+        else:
+            queryset = queryset.filter(is_read=False)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        # Auto-seed mock notifications if none exist in the database for this user
+        if not models.Notification.objects.filter(user=request.user).exists():
+            models.Notification.objects.create(
+                user=request.user,
+                title="New Order Received",
+                message="Order #1024 has been successfully placed by a customer.",
+                notification_type="order",
+                target_id="1024"
+            )
+            models.Notification.objects.create(
+                user=request.user,
+                title="Low Stock Alert",
+                message="Product 'Western Cow Silk Scarf' is below minimum stock threshold.",
+                notification_type="general"
+            )
+            models.Notification.objects.create(
+                user=request.user,
+                title="Payment Processed",
+                message="Payout of $499.50 has been settled to your merchant account.",
+                notification_type="payment",
+                target_id="payout_987"
+            )
+            models.Notification.objects.create(
+                user=request.user,
+                title="Order #1025 Shipped",
+                message="Your dropshipping order #1025 has been dispatched.",
+                notification_type="order",
+                target_id="1025"
+            )
+            models.Notification.objects.create(
+                user=request.user,
+                title="Refund Processed",
+                message="Refund of $45.00 for Order #1020 has been processed successfully.",
+                notification_type="payment",
+                target_id="refund_456"
+            )
+        
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

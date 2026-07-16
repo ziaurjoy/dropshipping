@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'products_app',
     'cart_app',
     'orders_app',
+    'django_filters',
 
     "rest_framework",
     'rest_framework_simplejwt',
@@ -83,6 +84,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "dropshipping_project_app.middleware.SessionRedisCachingMiddleware",
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

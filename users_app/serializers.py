@@ -264,3 +264,10 @@ class IntegrationCredentialSerializer(serializers.ModelSerializer):
         model = user_models.IntegrationCredential
         fields = '__all__'
         read_only_fields = ['user']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = user_models.Notification
+        fields = '__all__'
+        read_only_fields = ['user']

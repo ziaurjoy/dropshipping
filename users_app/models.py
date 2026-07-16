@@ -147,3 +147,25 @@ class IntegrationCredential(models.Model):
     api_secret = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('order', 'Order'),
+        ('payment', 'Payment'),
+        ('general', 'General'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications", blank=True, null=True)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='general')
+    target_id = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title

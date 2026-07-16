@@ -45,7 +45,7 @@ router.register(r'delivery-addresses', views.DeliveryAddressViewSet, basename='d
 router.register(r'integration-credentials', views.IntegrationCredentialViewSet, basename='integrationcredential')
 router.register(r'users', views.UsersViewSet, basename='user')
 router.register(r'customer', views.ReadOnlyCustomer, basename='customer')
-
+router.register(r'notifications', views.NotificationViewSet, basename='notification')
 
 
 urlpatterns += router.urls
