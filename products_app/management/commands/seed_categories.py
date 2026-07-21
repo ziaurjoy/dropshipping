@@ -8,7 +8,8 @@ Usage:
 
 import json
 from django.core.management.base import BaseCommand
-from products_app.models import Category, Subcategory, Item  # ← update "yourapp"
+from django.db import transaction
+from products_app.models import Category, Subcategory, Item
 
 DATA = {
     "_id": "69df35f13c51f8b91387d4e2",

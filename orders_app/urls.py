@@ -14,5 +14,10 @@ router.register(r'shipments', ShipmentViewSet, basename='shipment')
 router.register(r'shipment-method', ShippingMethodViewSet, basename='shipment-method')
 router.register(r'support-tickets', SupportTicketViewSet, basename='supportticket')
 
-urlpatterns = router.urls
+from django.urls import path
+from .views import SystemSettingView
+
+urlpatterns = [
+    path('site-settings/', SystemSettingView.as_view(), name='site-settings'),
+] + router.urls
 

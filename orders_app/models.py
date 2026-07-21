@@ -113,6 +113,8 @@ class Order(models.Model):
 
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     shipping_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    coupon_code = models.CharField(max_length=50, blank=True, null=True)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -294,6 +296,28 @@ class SupportTicket(models.Model):
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"
+
+
+class SystemSetting(models.Model):
+    store_name = models.CharField(max_length=255, default="Update Tech Dropshipping")
+    contact_email = models.EmailField(default="support@updatetech.com")
+    vat_percent = models.DecimalField(max_digits=5, decimal_places=2, default=5.0)
+    logo = models.ImageField(upload_to='site_assets/', blank=True, null=True)
+    favicon = models.ImageField(upload_to='site_assets/', blank=True, null=True)
+
+    bkash_app_key = models.CharField(max_length=255, default="bksh_app_key_82910391")
+    bkash_app_secret = models.CharField(max_length=255, default="••••••••••••••••••••••••••••••••")
+
+    nagad_merchant_id = models.CharField(max_length=255, default="nagad_m_90192")
+
+    smtp_domain = models.CharField(max_length=255, default="mail.updatetech.com")
+    sms_api_token = models.CharField(max_length=255, default="sms_auth_tok_•••••••")
+    whatsapp_notifications = models.BooleanField(default=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "System Settings"
 
 
 

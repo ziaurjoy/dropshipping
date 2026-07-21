@@ -16,12 +16,12 @@ def get_session_id(request):
     """
     if request.user and request.user.is_authenticated:
         return f"user_{request.user.id}"
-    
+
     session_key = request.session.session_key
     if not session_key:
         request.session.create()
         session_key = request.session.session_key
-        
+
     return f"anon_{session_key}"
 
 
@@ -38,7 +38,13 @@ def get_cache_key(prefix, session_id, query_params):
 
 
 from products_app.models import SettingExchangeRate, Category, Subcategory, Item, SearchSuggestion
-from products_app.serializers import SettingExchangeRateSerializer, CategorySerializer, SubcategorySerializer, SearchSuggestionSerializer
+from products_app.serializers import (
+    SettingExchangeRateSerializer,
+    CategorySerializer,
+    SubcategorySerializer,
+    ItemSerializer,
+    SearchSuggestionSerializer
+)
 from products_app.services import (
     get_category_from_fastapi,
     get_products_details_from_fastapi,
@@ -281,6 +287,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    pagination_class = None
     filterset_fields = ['name']
     search_fields = ['name']
     ordering_fields = ['id', 'name']
@@ -342,3 +349,23 @@ class SearchSuggestionViewSet(viewsets.ModelViewSet):
         if q:
             queryset = queryset.filter(keyword__icontains=q)
         return queryset[:10]
+
+
+class SubcategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Subcategory.objects.all()
+    serializer_class = SubcategorySerializer
+    pagination_class = None
+    filterset_fields = ['category', 'name']
+    search_fields = ['name']
+    ordering_fields = ['id', 'name']
+
+
+class ItemViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Item.objects.all()
+    serializer_class = ItemSerializer
+    pagination_class = None
+    filterset_fields = ['subcategory', 'name']
+    search_fields = ['name']
+    ordering_fields = ['id', 'name']

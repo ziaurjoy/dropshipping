@@ -104,6 +104,7 @@ class PlaceOrderSerializer(serializers.Serializer):
     address_id = serializers.IntegerField()
     shipping_charge = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0.0)
     payment_method = serializers.CharField(max_length=20, required=False, default='cod')
+    coupon_code = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
 
     def validate_address_id(self, value):
         user = self.context['request'].user
@@ -124,6 +125,7 @@ class PlaceOrderSerializer(serializers.Serializer):
         address         = DeliveryAddress.objects.get(id=validated_data['address_id'])
         shipping_charge = validated_data.get('shipping_charge', 0.0)
         payment_method  = validated_data.get('payment_method', 'cod')
+        coupon_code     = validated_data.get('coupon_code')
         cart_items      = Cart.objects.filter(user=user)
 
         items_list = []
@@ -149,6 +151,24 @@ class PlaceOrderSerializer(serializers.Serializer):
                 'item_total': round(item_total, 2)
             })
 
+        discount_amount = 0.0
+        if coupon_code:
+            coupon_qs = Coupon.objects.filter(code__iexact=coupon_code.strip(), is_active=True)
+            if coupon_qs.exists():
+                coupon = coupon_qs.first()
+                import datetime
+                if coupon.valid_until >= datetime.date.today():
+                    min_order = float(coupon.min_order_amount or 0.0)
+                    if subtotal >= min_order:
+                        if coupon.discount_type == 'flat':
+                            discount_amount = float(coupon.discount_value)
+                        elif coupon.discount_type == 'percent':
+                            discount_amount = (float(coupon.discount_value) / 100.0) * subtotal
+                        
+                        discount_amount = min(discount_amount, subtotal)
+                        coupon.used_count += 1
+                        coupon.save()
+
         first_cart = cart_items.first()
         order = Order.objects.create(
             user            = user,
@@ -163,7 +183,9 @@ class PlaceOrderSerializer(serializers.Serializer):
             # Consolidated fields
             items           = items_list,
             shipping_charge = shipping_charge,
-            total_price     = round(subtotal + float(shipping_charge), 2),
+            coupon_code     = coupon_code if discount_amount > 0 else None,
+            discount        = round(discount_amount, 2),
+            total_price     = round(subtotal - discount_amount + float(shipping_charge), 2),
         )
 
         # Create shipment

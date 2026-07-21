@@ -12,7 +12,7 @@ from decimal import Decimal
 # from cart_app.models import Cart
 from users_app.models import DeliveryAddress
 from users_app.serializers import DeliveryAddressSerializer
-from .models import Payment, Shipment, Coupon, ShipmentSetting, ShippingZone, SupportTicket
+from .models import Payment, Shipment, Coupon, ShipmentSetting, ShippingZone, SupportTicket, SystemSetting
 from .serializers import (CouponSerializer, OrderDetailsResponseSerializer, PaymentSerializer,
     ShipmentSerializer, ShippingMethodSerializer, ShippingZoneSerializer, SupportTicketSerializer)
 
@@ -904,5 +904,39 @@ class OrderViewSet(ModelViewSet):
         
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=False, filename=f"invoice_{order.order_number}.pdf", content_type='application/pdf')
+
+
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from .models import SystemSetting
+from rest_framework import serializers
+
+class SystemSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemSetting
+        fields = '__all__'
+
+class SystemSettingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        setting, created = SystemSetting.objects.get_or_create(id=1)
+        serializer = SystemSettingSerializer(setting)
+        return Response({
+            "success": True,
+            "data": serializer.data
+        })
+
+    def patch(self, request):
+        setting, created = SystemSetting.objects.get_or_create(id=1)
+        serializer = SystemSettingSerializer(setting, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "success": True,
+                "data": serializer.data
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
