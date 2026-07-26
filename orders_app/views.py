@@ -417,13 +417,45 @@ from .models import Order
 from .serializers import PlaceOrderSerializer, OrderResponseSerializer
 
 
+import django_filters
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+
+class OrderPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'limit'
+    max_page_size = 100
+
+    def get_paginated_response(self, data):
+        return Response({
+            'success': True,
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'data': data,
+            'results': data
+        })
+
+class OrderFilter(django_filters.FilterSet):
+    created_at_start = django_filters.DateTimeFilter(field_name='created_at', lookup_expr='gte')
+    created_at_end = django_filters.DateTimeFilter(field_name='created_at', lookup_expr='lte')
+    total_price_min = django_filters.NumberFilter(field_name='total_price', lookup_expr='gte')
+    total_price_max = django_filters.NumberFilter(field_name='total_price', lookup_expr='lte')
+
+    class Meta:
+        model = Order
+        fields = ['status', 'shipping_method']
+
 class OrderViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = OrderResponseSerializer
     http_method_names  = ['get', 'post', 'patch', 'delete']
-    filterset_fields   = ['status', 'shipping_method']
+    filter_backends    = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class    = OrderFilter
     search_fields      = ['order_number', 'product_name', 'address__full_name', 'address__phone']
     ordering_fields    = ['created_at', 'total_price', 'order_number']
+    pagination_class   = OrderPagination
 
     def get_queryset(self):
         if self.request.user.is_staff or self.request.user.is_superuser:
@@ -455,9 +487,14 @@ class OrderViewSet(ModelViewSet):
 
     # ── GET /api/orders/ ──────────────────────────────────────
     def list(self, request, *args, **kwargs):
-        queryset   = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        queryset   = self.filter_queryset(self.get_queryset())
 
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
         return Response(
             {
                 'success': True,
@@ -628,102 +665,131 @@ class OrderViewSet(ModelViewSet):
         # Create file-like buffer
         buffer = io.BytesIO()
         
-        # 4x6 inches label format
-        p = canvas.Canvas(buffer, pagesize=(4*inch, 6*inch))
+        # 4x4 inches label format matching the visual layout
+        p = canvas.Canvas(buffer, pagesize=(4*inch, 4*inch))
         
-        # Border
+        # Draw outer thick rounded border
         p.setStrokeColor(colors.black)
-        p.setLineWidth(2)
-        p.rect(0.1*inch, 0.1*inch, 3.8*inch, 5.8*inch)
+        p.setLineWidth(3)
+        p.roundRect(7.2, 7.2, 273.6, 273.6, 8, stroke=1, fill=0)
         
-        # Header Section
-        p.setFont("Helvetica-Bold", 12)
-        p.drawString(0.2*inch, 5.5*inch, "SKY SHIP LOGISTICS")
-        p.setFont("Helvetica", 7)
-        p.drawString(0.2*inch, 5.35*inch, "ROUTING ZONE: DAC-NORD-1212")
+        # 1. SHIP TO Section
+        # Draw SHIP TO pill background
+        p.setFillColor(colors.black)
+        p.roundRect(20, 222, 62, 20, 4, stroke=0, fill=1)
         
-        p.setLineWidth(1)
-        p.line(0.1*inch, 5.2*inch, 3.9*inch, 5.2*inch)
-        
-        # Method Box
-        method = (order.shipping_method or "AIR").upper()
+        # SHIP TO text
+        p.setFillColor(colors.white)
         p.setFont("Helvetica-Bold", 10)
-        p.drawRightString(3.7*inch, 5.45*inch, method)
-        p.rect(3.2*inch, 5.35*inch, 0.55*inch, 0.25*inch)
+        p.drawString(25, 228, "SHIP TO:")
         
-        # Draw barcode representation
-        p.setFont("Helvetica-Bold", 8)
-        p.drawCentredString(2.0*inch, 4.15*inch, f"*{order.order_number}*")
-        
-        # Draw barcode lines
-        barcode_x = 0.5*inch
-        barcode_y = 4.35*inch
-        barcode_h = 0.55*inch
-        
-        bars = [2,1,3,1,2,4,1,3,2,1,4,2,1,3,2,4,1,3,2,1,4,2,1,3,2]
-        current_x = barcode_x
-        for i, w in enumerate(bars):
-            if i % 2 == 0:
-                p.rect(current_x, barcode_y, w * 0.03 * inch, barcode_h, fill=True, stroke=False)
-            current_x += w * 0.03 * inch
-            
-        p.setLineWidth(1)
-        p.line(0.1*inch, 4.0*inch, 3.9*inch, 4.0*inch)
-        
-        # Receiver Info
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(0.2*inch, 3.85*inch, "SHIP TO:")
-        
+        # Address Details (beside SHIP TO)
         address = getattr(order, 'address', None)
-        full_name = address.full_name if address else "GUEST CUSTOMER"
+        full_name = address.full_name if address else "Guest Customer"
         phone = address.phone if address else getattr(order, 'shipping_phone', '')
         addr_line = address.address if address else getattr(order, 'shipping_address', '')
         city = address.city if address else getattr(order, 'shipping_city', '')
         district = address.district if address else getattr(order, 'shipping_district', '')
         zip_code = address.postal_code if address else getattr(order, 'shipping_zip_code', '')
         
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(0.2*inch, 3.65*inch, full_name.upper())
-        p.setFont("Helvetica-Bold", 9)
-        p.drawString(0.2*inch, 3.45*inch, f"PHONE: {phone}")
+        addr_lines = [
+            full_name,
+            addr_line[:40] + (',' if len(addr_line) > 0 and not addr_line.endswith(',') else ''),
+        ]
+        if address and address.address_line2:
+            addr_lines.append(address.address_line2[:40] + (',' if not address.address_line2.endswith(',') else ''))
+        addr_lines.append(f"{district}, {city} - {zip_code}")
+        
+        p.setFillColor(colors.black)
+        p.setFont("Helvetica", 9)
+        curr_y = 228
+        for line in addr_lines:
+            p.drawString(95, curr_y, line)
+            curr_y -= 12
+            
+        # Separator Line 1
+        p.setLineWidth(1.5)
+        p.setStrokeColor(colors.black)
+        p.line(20, 180, 268, 180)
+        
+        # 2. FROM Section
+        p.setFont("Helvetica-Bold", 8)
+        p.drawString(20, 160, "FROM:")
         
         p.setFont("Helvetica", 8)
-        addr_lines = [addr_line[i:i+40] for i in range(0, len(addr_line), 40)]
-        y_pos = 3.25 * inch
-        for line in addr_lines[:2]:
-            p.drawString(0.2*inch, y_pos, line)
-            y_pos -= 0.18 * inch
-            
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(0.2*inch, y_pos, f"{district.upper()}, {city.upper()} - {zip_code}")
+        p.drawString(95, 160, "Update Tech Dropshipping")
+        p.drawString(95, 148, "Dhaka Hub Fulfillment Center,")
+        p.drawString(95, 136, "Dhaka, 1212, Bangladesh")
         
+        # Separator Line 2
+        p.line(20, 126, 268, 126)
+        
+        # Calculate total weight from items list
+        total_weight = 0.0
+        order_items = order.items if (order.items and isinstance(order.items, list)) else []
+        for item in order_items:
+            variants = item.get('variants', [])
+            if isinstance(variants, list):
+                for v in variants:
+                    if isinstance(v, dict):
+                        qty = int(v.get('quantity', 1))
+                        w = float(v.get('weight', 0.5))
+                        total_weight += qty * w
+        if total_weight <= 0:
+            total_weight = 0.5
+        
+        # 3. Metadata Grid
+        p.setFont("Helvetica-Bold", 7.5)
+        p.drawString(20, 112, "ORDER ID:")
+        p.setFont("Helvetica", 7.5)
+        p.drawString(85, 112, order.order_number)
+        
+        p.setFont("Helvetica-Bold", 7.5)
+        p.drawString(145, 112, "DIMENSIONS:")
+        p.setFont("Helvetica", 7.5)
+        p.drawString(218, 112, "12cm x 12cm x 12cm")
+        
+        p.setFont("Helvetica-Bold", 7.5)
+        p.drawString(20, 97, "WEIGHT:")
+        p.setFont("Helvetica", 7.5)
+        p.drawString(85, 97, f"{total_weight:.1f} KG")
+        
+        p.setFont("Helvetica-Bold", 7.5)
+        p.drawString(145, 97, "SHIPPING DATE:")
+        p.setFont("Helvetica", 7.5)
+        p.drawString(218, 97, order.created_at.strftime('%Y-%m-%d'))
+        
+        p.setFont("Helvetica-Bold", 7.5)
+        p.drawString(20, 82, "REMARKS:")
+        p.setFont("Helvetica", 7.5)
+        p.drawString(85, 82, "NO REMARKS")
+        
+        # Double Separator Line 3
         p.setLineWidth(1)
-        p.line(0.1*inch, 2.0*inch, 3.9*inch, 2.0*inch)
+        p.line(20, 70, 268, 70)
+        p.line(20, 68, 268, 68)
         
-        # Sender Info
-        p.setFont("Helvetica-Bold", 7)
-        p.drawString(0.2*inch, 1.8*inch, "FROM:")
-        p.setFont("Helvetica", 7)
-        p.drawString(0.2*inch, 1.65*inch, "Update Tech Dropshipping")
-        p.drawString(0.2*inch, 1.5*inch, "Dhaka Fulfillment Hub center, Bangladesh")
+        # 4. Barcode Drawing
+        barcode_x = 87
+        barcode_y = 22
+        barcode_h = 34
         
-        p.setLineWidth(1)
-        p.line(0.1*inch, 1.3*inch, 3.9*inch, 1.3*inch)
-        
-        # COD details
-        p.setFont("Helvetica-Bold", 7)
-        p.drawString(0.2*inch, 1.1*inch, "PAYMENT TYPE:")
-        payment = order.payments.first()
-        payment_method_code = payment.method if payment else "cod"
-        payment_method = "PREPAID" if payment_method_code == "card" else "COD COLLECT"
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(0.2*inch, 0.9*inch, payment_method)
-        
-        # Black block for collect amount
+        bars = [2,1,3,1,2,4,1,3,2,1,4,2,1,3,2,4,1,3,2,1,4,2,1,3,2,1,3,2,1,4,2,1,3,1,2,4]
+        current_x = barcode_x
         p.setFillColor(colors.black)
-        p.rect(2.1*inch, 0.1*inch, 1.8*inch, 1.2*inch, fill=True, stroke=False)
+        for i, w in enumerate(bars):
+            if i % 2 == 0:
+                p.rect(current_x, barcode_y, w * 1.5, barcode_h, fill=True, stroke=False)
+            current_x += w * 1.5
+            
+        p.setFont("Helvetica", 7.5)
+        p.drawCentredString(144, 11, f"TRACK{order.order_number}BD")
         
-        p.setFillColor(colors.white)
+        p.showPage()
+        p.save()
+        
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=False, filename=f"shipping_label_{order.order_number}.pdf", content_type='application/pdf')or(colors.white)
         p.setFont("Helvetica-Bold", 6)
         p.drawString(2.2*inch, 0.95*inch, "TOTAL COLLECTION AMOUNT")
         p.setFont("Helvetica-Bold", 12)
@@ -822,6 +888,7 @@ class OrderViewSet(ModelViewSet):
         p.setFont("Helvetica", 9)
         
         # Unpack order.items to rows
+        # Unpack order.items to rows
         order_items = order.items if (order.items and isinstance(order.items, list)) else []
         
         # Draw items
@@ -830,24 +897,44 @@ class OrderViewSet(ModelViewSet):
                 prod_name = item.get('product_name', '')
                 prod_id = item.get('product_id', '')
                 variants = item.get('variants', [])
+                if not isinstance(variants, list):
+                    variants = []
                 
                 # If there are color/size variants, iterate
                 for v in variants:
-                    color = v.get('variant', {}).get('color_name', 'Default')
-                    sizes = v.get('variant', {}).get('sizes', [])
-                    size = sizes[0].get('size_name', 'Default') if sizes else 'Default'
-                    price = float(sizes[0].get('price', 0)) if sizes else 0.0
+                    if not isinstance(v, dict):
+                        continue
                     
-                    qty_map = v.get('quantity', {})
-                    qty = sum(int(q) for q in qty_map.values()) if qty_map else 1
+                    # Format A: Flat SKU-based
+                    if isinstance(v.get('quantity'), (int, float)):
+                        label = v.get('label', 'Standard')
+                        price = float(v.get('price', 0))
+                        qty = int(v.get('quantity', 0))
+                        total = qty * price
+                        
+                        # Wrap product name if long
+                        prod_line = prod_name[:50] + "..." if len(prod_name) > 50 else prod_name
+                        var_line = label
+                        if len(var_line) > 55:
+                            var_line = var_line[:52] + "..."
                     
-                    total = qty * price
-                    
-                    # Wrap product name if long
-                    prod_line = prod_name[:50] + "..." if len(prod_name) > 50 else prod_name
-                    var_line = f"Color: {color}, Size: {size}"
-                    if len(var_line) > 55:
-                        var_line = var_line[:52] + "..."
+                    # Format B: Nested structure
+                    elif isinstance(v.get('quantity'), dict):
+                        color = v.get('variant', {}).get('color_name', 'Default')
+                        sizes = v.get('variant', {}).get('sizes', [])
+                        size = sizes[0].get('size_name', 'Default') if sizes else 'Default'
+                        price = float(sizes[0].get('price', 0)) if sizes else 0.0
+                        
+                        qty_map = v.get('quantity', {})
+                        qty = sum(int(q) for q in qty_map.values()) if qty_map else 1
+                        total = qty * price
+                        
+                        prod_line = prod_name[:50] + "..." if len(prod_name) > 50 else prod_name
+                        var_line = f"Color: {color}, Size: {size}"
+                        if len(var_line) > 55:
+                            var_line = var_line[:52] + "..."
+                    else:
+                        continue
                         
                     p.setFont("Helvetica-Bold", 8.5)
                     p.drawString(45, row_y, prod_line)
@@ -881,17 +968,30 @@ class OrderViewSet(ModelViewSet):
         # Summary Box
         summary_y = row_y - 20
         p.setFont("Helvetica", 9)
+        
+        total_val = float(order.total_price or 0)
+        ship_val = float(order.shipping_charge or 0)
+        disc_val = float(order.discount or 0)
+        subtotal_val = total_val - ship_val + disc_val
+        
         p.drawRightString(width - 120, summary_y, "Subtotal:")
-        p.drawRightString(width - 45, summary_y, f"TK {float(order.total_price or 0):,.2f}")
+        p.drawRightString(width - 45, summary_y, f"TK {subtotal_val:,.2f}")
         
         summary_y -= 15
         p.drawRightString(width - 120, summary_y, "Shipping Charge:")
-        p.drawRightString(width - 45, summary_y, f"TK {float(order.shipping_charge or 0):,.2f}")
+        p.drawRightString(width - 45, summary_y, f"TK {ship_val:,.2f}")
+        
+        if disc_val > 0:
+            summary_y -= 15
+            p.setFillColor(colors.HexColor("#10B981"))
+            p.drawRightString(width - 120, summary_y, f"Discount ({order.coupon_code or 'Coupon'}):")
+            p.drawRightString(width - 45, summary_y, f"-TK {disc_val:,.2f}")
+            p.setFillColor(colors.black)
         
         summary_y -= 18
         p.setFont("Helvetica-Bold", 10)
         p.drawRightString(width - 120, summary_y, "Grand Total:")
-        p.drawRightString(width - 45, summary_y, f"TK {float(order.total_price or 0) + float(order.shipping_charge or 0):,.2f}")
+        p.drawRightString(width - 45, summary_y, f"TK {total_val:,.2f}")
         
         # Footer
         p.setFont("Helvetica", 8)

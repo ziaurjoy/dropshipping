@@ -134,12 +134,24 @@ class PlaceOrderSerializer(serializers.Serializer):
             # compute subtotal for this item
             item_total = 0.0
             for entry in cart.variants:
-                quantity_map = entry.get('quantity', {})
-                sizes        = entry.get('variant', {}).get('sizes', [])
-                for size in sizes:
-                    qty   = quantity_map.get(size['size_name'], 0)
-                    price = float(size.get('price', 0))
+                if not isinstance(entry, dict):
+                    continue
+                # Format A: Flat SKU-based
+                if isinstance(entry.get('quantity'), (int, float)):
+                    qty = int(entry.get('quantity', 0))
+                    price = float(entry.get('price', 0))
                     item_total += qty * price
+                # Format B: Old nested structure
+                elif isinstance(entry.get('quantity'), dict):
+                    quantity_map = entry.get('quantity', {})
+                    sizes = entry.get('variant', {}).get('sizes', [])
+                    if isinstance(sizes, list):
+                        for size in sizes:
+                            if not isinstance(size, dict):
+                                continue
+                            qty = int(quantity_map.get(size.get('size_name'), 0))
+                            price = float(size.get('price', 0))
+                            item_total += qty * price
             subtotal += item_total
 
             items_list.append({
@@ -231,6 +243,8 @@ class OrderResponseSerializer(serializers.ModelSerializer):
             'payment_method',
             'total_price',
             'items',
+            'discount',
+            'coupon_code',
             'created_at',
             'updated_at',
         ]
@@ -262,6 +276,8 @@ class OrderDetailsResponseSerializer(serializers.ModelSerializer):
             'payment_method',
             'total_price',
             'items',
+            'discount',
+            'coupon_code',
             'created_at',
             'updated_at',
         ]
