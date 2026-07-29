@@ -450,17 +450,29 @@ class OrderFilter(django_filters.FilterSet):
 class OrderViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = OrderResponseSerializer
-    http_method_names  = ['get', 'post', 'patch', 'delete']
+    # http_method_names  = ['get', 'post', 'patch', 'delete']
     filter_backends    = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class    = OrderFilter
     search_fields      = ['order_number', 'product_name', 'address__full_name', 'address__phone']
     ordering_fields    = ['created_at', 'total_price', 'order_number']
+    ordering = ['-created_at']
     pagination_class   = OrderPagination
+
+    def filter_queryset(self, queryset):
+        qd = self.request.query_params._mutable
+        self.request.query_params._mutable = True
+        for key, value in list(self.request.query_params.items()):
+            if value and isinstance(value, str):
+                sanitized = value.strip().rstrip('/')
+                if sanitized != value:
+                    self.request.query_params[key] = sanitized
+        self.request.query_params._mutable = qd
+        return super().filter_queryset(queryset)
 
     def get_queryset(self):
         if self.request.user.is_staff or self.request.user.is_superuser:
-            return Order.objects.all().order_by('-created_at')
-        return Order.objects.filter(user=self.request.user).order_by('-created_at')
+            return Order.objects.all()
+        return Order.objects.filter(user=self.request.user)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -655,7 +667,7 @@ class OrderViewSet(ModelViewSet):
     @action(detail=True, methods=['get'], url_path='print-label')
     def print_label(self, request, pk=None):
         order = self.get_object()
-        
+
         import io
         from django.http import FileResponse
         from reportlab.lib import colors
@@ -664,25 +676,25 @@ class OrderViewSet(ModelViewSet):
 
         # Create file-like buffer
         buffer = io.BytesIO()
-        
+
         # 4x4 inches label format matching the visual layout
         p = canvas.Canvas(buffer, pagesize=(4*inch, 4*inch))
-        
+
         # Draw outer thick rounded border
         p.setStrokeColor(colors.black)
         p.setLineWidth(3)
         p.roundRect(7.2, 7.2, 273.6, 273.6, 8, stroke=1, fill=0)
-        
+
         # 1. SHIP TO Section
         # Draw SHIP TO pill background
         p.setFillColor(colors.black)
         p.roundRect(20, 222, 62, 20, 4, stroke=0, fill=1)
-        
+
         # SHIP TO text
         p.setFillColor(colors.white)
         p.setFont("Helvetica-Bold", 10)
         p.drawString(25, 228, "SHIP TO:")
-        
+
         # Address Details (beside SHIP TO)
         address = getattr(order, 'address', None)
         full_name = address.full_name if address else "Guest Customer"
@@ -691,7 +703,7 @@ class OrderViewSet(ModelViewSet):
         city = address.city if address else getattr(order, 'shipping_city', '')
         district = address.district if address else getattr(order, 'shipping_district', '')
         zip_code = address.postal_code if address else getattr(order, 'shipping_zip_code', '')
-        
+
         addr_lines = [
             full_name,
             addr_line[:40] + (',' if len(addr_line) > 0 and not addr_line.endswith(',') else ''),
@@ -699,31 +711,31 @@ class OrderViewSet(ModelViewSet):
         if address and address.address_line2:
             addr_lines.append(address.address_line2[:40] + (',' if not address.address_line2.endswith(',') else ''))
         addr_lines.append(f"{district}, {city} - {zip_code}")
-        
+
         p.setFillColor(colors.black)
         p.setFont("Helvetica", 9)
         curr_y = 228
         for line in addr_lines:
             p.drawString(95, curr_y, line)
             curr_y -= 12
-            
+
         # Separator Line 1
         p.setLineWidth(1.5)
         p.setStrokeColor(colors.black)
         p.line(20, 180, 268, 180)
-        
+
         # 2. FROM Section
         p.setFont("Helvetica-Bold", 8)
         p.drawString(20, 160, "FROM:")
-        
+
         p.setFont("Helvetica", 8)
         p.drawString(95, 160, "Update Tech Dropshipping")
         p.drawString(95, 148, "Dhaka Hub Fulfillment Center,")
         p.drawString(95, 136, "Dhaka, 1212, Bangladesh")
-        
+
         # Separator Line 2
         p.line(20, 126, 268, 126)
-        
+
         # Calculate total weight from items list
         total_weight = 0.0
         order_items = order.items if (order.items and isinstance(order.items, list)) else []
@@ -737,43 +749,43 @@ class OrderViewSet(ModelViewSet):
                         total_weight += qty * w
         if total_weight <= 0:
             total_weight = 0.5
-        
+
         # 3. Metadata Grid
         p.setFont("Helvetica-Bold", 7.5)
         p.drawString(20, 112, "ORDER ID:")
         p.setFont("Helvetica", 7.5)
         p.drawString(85, 112, order.order_number)
-        
+
         p.setFont("Helvetica-Bold", 7.5)
         p.drawString(145, 112, "DIMENSIONS:")
         p.setFont("Helvetica", 7.5)
         p.drawString(218, 112, "12cm x 12cm x 12cm")
-        
+
         p.setFont("Helvetica-Bold", 7.5)
         p.drawString(20, 97, "WEIGHT:")
         p.setFont("Helvetica", 7.5)
         p.drawString(85, 97, f"{total_weight:.1f} KG")
-        
+
         p.setFont("Helvetica-Bold", 7.5)
         p.drawString(145, 97, "SHIPPING DATE:")
         p.setFont("Helvetica", 7.5)
         p.drawString(218, 97, order.created_at.strftime('%Y-%m-%d'))
-        
+
         p.setFont("Helvetica-Bold", 7.5)
         p.drawString(20, 82, "REMARKS:")
         p.setFont("Helvetica", 7.5)
         p.drawString(85, 82, "NO REMARKS")
-        
+
         # Double Separator Line 3
         p.setLineWidth(1)
         p.line(20, 70, 268, 70)
         p.line(20, 68, 268, 68)
-        
+
         # 4. Barcode Drawing
         barcode_x = 87
         barcode_y = 22
         barcode_h = 34
-        
+
         bars = [2,1,3,1,2,4,1,3,2,1,4,2,1,3,2,4,1,3,2,1,4,2,1,3,2,1,3,2,1,4,2,1,3,1,2,4]
         current_x = barcode_x
         p.setFillColor(colors.black)
@@ -781,59 +793,59 @@ class OrderViewSet(ModelViewSet):
             if i % 2 == 0:
                 p.rect(current_x, barcode_y, w * 1.5, barcode_h, fill=True, stroke=False)
             current_x += w * 1.5
-            
+
         p.setFont("Helvetica", 7.5)
         p.drawCentredString(144, 11, f"TRACK{order.order_number}BD")
-        
+
         p.showPage()
         p.save()
-        
+
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=False, filename=f"shipping_label_{order.order_number}.pdf", content_type='application/pdf')or(colors.white)
         p.setFont("Helvetica-Bold", 6)
         p.drawString(2.2*inch, 0.95*inch, "TOTAL COLLECTION AMOUNT")
         p.setFont("Helvetica-Bold", 12)
         p.drawString(2.2*inch, 0.5*inch, f"BDT {int(order.total_price or 0):,}")
-        
+
         p.showPage()
         p.save()
-        
+
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=False, filename=f"shipping_label_{order.order_number}.pdf", content_type='application/pdf')
 
     @action(detail=True, methods=['get'], url_path='print-invoice')
     def print_invoice(self, request, pk=None):
         order = self.get_object()
-        
+
         import io
         from django.http import FileResponse
         from reportlab.lib import colors
         from reportlab.pdfgen import canvas
         from reportlab.lib.pagesizes import A4
-        
+
         buffer = io.BytesIO()
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4 # 595.27 x 841.89
-        
+
         # Draw header banner
         p.setFillColor(colors.HexColor("#F16A38"))
         p.rect(0, height - 80, width, 80, fill=True, stroke=False)
-        
+
         # Header text
         p.setFillColor(colors.white)
         p.setFont("Helvetica-Bold", 18)
         p.drawString(40, height - 48, "UPDATE TECH DROPSHIPPING")
         p.setFont("Helvetica", 9)
         p.drawString(40, height - 64, "DHAKA HUB FULFILLMENT CENTER, BANGLADESH")
-        
+
         p.setFont("Helvetica-Bold", 20)
         p.drawRightString(width - 40, height - 52, "INVOICE")
         p.setFont("Helvetica-Bold", 10)
         p.drawRightString(width - 40, height - 68, f"#{order.order_number}")
-        
+
         # Reset color
         p.setFillColor(colors.black)
-        
+
         # Bill To section
         address = getattr(order, 'address', None)
         full_name = address.full_name if address else "Guest Customer"
@@ -842,14 +854,14 @@ class OrderViewSet(ModelViewSet):
         city = address.city if address else getattr(order, 'shipping_city', '')
         district = address.district if address else getattr(order, 'shipping_district', '')
         zip_code = address.postal_code if address else getattr(order, 'shipping_zip_code', '')
-        
+
         p.setFont("Helvetica-Bold", 11)
         p.drawString(40, height - 130, "BILL TO:")
         p.setFont("Helvetica-Bold", 10)
         p.drawString(40, height - 145, full_name.upper())
         p.setFont("Helvetica", 9)
         p.drawString(40, height - 160, f"Phone: {phone}")
-        
+
         # Wrap address line
         addr_lines = [addr_line[i:i+45] for i in range(0, len(addr_line), 45)]
         y_pos = height - 175
@@ -857,7 +869,7 @@ class OrderViewSet(ModelViewSet):
             p.drawString(40, y_pos, line)
             y_pos -= 15
         p.drawString(40, y_pos, f"{district.upper()}, {city.upper()} - {zip_code}")
-        
+
         # Invoice metadata (Date, Payment method)
         p.setFont("Helvetica-Bold", 11)
         p.drawString(width - 220, height - 130, "INVOICE DETAILS:")
@@ -868,29 +880,29 @@ class OrderViewSet(ModelViewSet):
         payment_method = "Card Payment" if payment_method_code == "card" else "Cash On Delivery (COD)"
         p.drawString(width - 220, height - 160, f"Payment Method: {payment_method}")
         p.drawString(width - 220, height - 175, f"Shipping Mode: {order.shipping_method.upper()}")
-        
+
         # Table Header
         table_top = y_pos - 40
         p.setStrokeColor(colors.HexColor("#CCCCCC"))
         p.setLineWidth(1)
         p.line(40, table_top, width - 40, table_top)
-        
+
         p.setFont("Helvetica-Bold", 9)
         p.drawString(45, table_top - 15, "PRODUCT DESCRIPTION")
         p.drawCentredString(width - 180, table_top - 15, "QTY")
         p.drawRightString(width - 100, table_top - 15, "UNIT PRICE")
         p.drawRightString(width - 45, table_top - 15, "TOTAL")
-        
+
         p.line(40, table_top - 22, width - 40, table_top - 22)
-        
+
         # Unpack variants to display item rows
         row_y = table_top - 38
         p.setFont("Helvetica", 9)
-        
+
         # Unpack order.items to rows
         # Unpack order.items to rows
         order_items = order.items if (order.items and isinstance(order.items, list)) else []
-        
+
         # Draw items
         if order_items:
             for item in order_items:
@@ -899,49 +911,49 @@ class OrderViewSet(ModelViewSet):
                 variants = item.get('variants', [])
                 if not isinstance(variants, list):
                     variants = []
-                
+
                 # If there are color/size variants, iterate
                 for v in variants:
                     if not isinstance(v, dict):
                         continue
-                    
+
                     # Format A: Flat SKU-based
                     if isinstance(v.get('quantity'), (int, float)):
                         label = v.get('label', 'Standard')
                         price = float(v.get('price', 0))
                         qty = int(v.get('quantity', 0))
                         total = qty * price
-                        
+
                         # Wrap product name if long
                         prod_line = prod_name[:50] + "..." if len(prod_name) > 50 else prod_name
                         var_line = label
                         if len(var_line) > 55:
                             var_line = var_line[:52] + "..."
-                    
+
                     # Format B: Nested structure
                     elif isinstance(v.get('quantity'), dict):
                         color = v.get('variant', {}).get('color_name', 'Default')
                         sizes = v.get('variant', {}).get('sizes', [])
                         size = sizes[0].get('size_name', 'Default') if sizes else 'Default'
                         price = float(sizes[0].get('price', 0)) if sizes else 0.0
-                        
+
                         qty_map = v.get('quantity', {})
                         qty = sum(int(q) for q in qty_map.values()) if qty_map else 1
                         total = qty * price
-                        
+
                         prod_line = prod_name[:50] + "..." if len(prod_name) > 50 else prod_name
                         var_line = f"Color: {color}, Size: {size}"
                         if len(var_line) > 55:
                             var_line = var_line[:52] + "..."
                     else:
                         continue
-                        
+
                     p.setFont("Helvetica-Bold", 8.5)
                     p.drawString(45, row_y, prod_line)
                     p.setFont("Helvetica", 7.5)
                     p.setFillColor(colors.HexColor("#555555"))
                     p.drawString(45, row_y - 10, var_line)
-                    
+
                     p.setFillColor(colors.black)
                     p.setFont("Helvetica", 9)
                     p.drawCentredString(width - 180, row_y - 4, str(qty))
@@ -956,52 +968,52 @@ class OrderViewSet(ModelViewSet):
             prod_line = prod_name[:50] + "..." if len(prod_name) > 50 else prod_name
             p.setFont("Helvetica-Bold", 8.5)
             p.drawString(45, row_y, prod_line)
-            
+
             p.setFont("Helvetica", 9)
             p.drawCentredString(width - 180, row_y - 4, str(qty))
             p.drawRightString(width - 100, row_y - 4, f"TK {price:,.2f}")
             p.drawRightString(width - 45, row_y - 4, f"TK {price:,.2f}")
             row_y -= 28
-            
+
         p.line(40, row_y + 8, width - 40, row_y + 8)
-        
+
         # Summary Box
         summary_y = row_y - 20
         p.setFont("Helvetica", 9)
-        
+
         total_val = float(order.total_price or 0)
         ship_val = float(order.shipping_charge or 0)
         disc_val = float(order.discount or 0)
         subtotal_val = total_val - ship_val + disc_val
-        
+
         p.drawRightString(width - 120, summary_y, "Subtotal:")
         p.drawRightString(width - 45, summary_y, f"TK {subtotal_val:,.2f}")
-        
+
         summary_y -= 15
         p.drawRightString(width - 120, summary_y, "Shipping Charge:")
         p.drawRightString(width - 45, summary_y, f"TK {ship_val:,.2f}")
-        
+
         if disc_val > 0:
             summary_y -= 15
             p.setFillColor(colors.HexColor("#10B981"))
             p.drawRightString(width - 120, summary_y, f"Discount ({order.coupon_code or 'Coupon'}):")
             p.drawRightString(width - 45, summary_y, f"-TK {disc_val:,.2f}")
             p.setFillColor(colors.black)
-        
+
         summary_y -= 18
         p.setFont("Helvetica-Bold", 10)
         p.drawRightString(width - 120, summary_y, "Grand Total:")
         p.drawRightString(width - 45, summary_y, f"TK {total_val:,.2f}")
-        
+
         # Footer
         p.setFont("Helvetica", 8)
         p.setFillColor(colors.HexColor("#777777"))
         p.drawCentredString(width/2.0, 50, "Thank you for shopping with Update Tech Dropshipping!")
         p.drawCentredString(width/2.0, 35, "This is a computer-generated invoice and requires no physical signature.")
-        
+
         p.showPage()
         p.save()
-        
+
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=False, filename=f"invoice_{order.order_number}.pdf", content_type='application/pdf')
 
