@@ -312,13 +312,14 @@ class SystemSetting(models.Model):
 
     smtp_domain = models.CharField(max_length=255, default="mail.updatetech.com")
     sms_api_token = models.CharField(max_length=255, default="sms_auth_tok_•••••••")
+    shipping_charge_air = models.DecimalField(max_digits=10, decimal_places=2, default=780.00)
+    shipping_charge_sea = models.DecimalField(max_digits=10, decimal_places=2, default=170.00)
     whatsapp_notifications = models.BooleanField(default=True)
 
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return "System Settings"
-
 
 
 

@@ -174,7 +174,7 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
             return Response(cached_data)
 
         data = get_products_from_fastapi(request=request)
-        rate = SettingExchangeRate.objects.filter(code='BDT').first().rate
+        rate = SettingExchangeRate.objects.filter(code='CNY').first().rate
         converted = convert_list_currency_to_bdt(data, cny_to_bdt_rate=rate)
 
         cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour

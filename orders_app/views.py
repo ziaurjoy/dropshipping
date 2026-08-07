@@ -1028,19 +1028,40 @@ class SystemSettingSerializer(serializers.ModelSerializer):
         model = SystemSetting
         fields = '__all__'
 
+class PublicSystemSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemSetting
+        fields = [
+            'id',
+            'store_name',
+            'contact_email',
+            'vat_percent',
+            'logo',
+            'favicon',
+            'shipping_charge_air',
+            'shipping_charge_sea',
+            'whatsapp_notifications',
+            'updated_at'
+        ]
+
 class SystemSettingView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         setting, created = SystemSetting.objects.get_or_create(id=1)
-        serializer = SystemSettingSerializer(setting)
+        if request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+            serializer = SystemSettingSerializer(setting)
+        else:
+            serializer = PublicSystemSettingSerializer(setting)
         return Response({
             "success": True,
             "data": serializer.data
         })
 
     def patch(self, request):
+        if not (request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)):
+            return Response({"detail": "You do not have permission to perform this action."}, status=status.HTTP_403_FORBIDDEN)
         setting, created = SystemSetting.objects.get_or_create(id=1)
         serializer = SystemSettingSerializer(setting, data=request.data, partial=True)
         if serializer.is_valid():
