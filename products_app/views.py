@@ -116,6 +116,21 @@ def convert_currency_to_bdt(data: dict, cny_to_bdt_rate: float = 16.5) -> dict:
             if size.get("price"):
                 size["price"] = replace_cny(size["price"])
 
+    # 4. skus.sku list conversion
+    skus_obj = product.get("skus", {})
+    if isinstance(skus_obj, dict):
+        skus_list = skus_obj.get("sku", [])
+        if isinstance(skus_list, list):
+            for sku in skus_list:
+                for sku_price_key in ("price", "orginal_price", "total_price"):
+                    if sku_price_key in sku:
+                        try:
+                            clean_str = re.sub(r'[^\d.]', '', str(sku[sku_price_key]))
+                            if clean_str:
+                                sku[sku_price_key] = float(clean_str) * cny_to_bdt_rate
+                        except (ValueError, TypeError):
+                            pass
+
     return data
 
 
@@ -186,15 +201,15 @@ class ProductFrom1688ViewSet(viewsets.ViewSet):
         cache_key = get_cache_key(f"product_detail_1688:{pk}", session_id, request.GET)
         cached_data = cache.get(cache_key)
         print('cache_key:', cache_key)
-        if cached_data is not None:
-            print('Cache hit!')
-            return Response(cached_data)
+        # if cached_data is not None:
+        #     print('Cache hit!')
+        #     return Response(cached_data)
 
         data = get_products_details_from_fastapi(product_id=pk, request=request)
-        cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='BDT').first().rate
+        cny_to_bdt_rate = SettingExchangeRate.objects.all().filter(code='CNY').first().rate
         converted = convert_currency_to_bdt(data, cny_to_bdt_rate=cny_to_bdt_rate)
-
-        cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
+        print('Converted product data:', converted)
+        # cache.set(cache_key, converted, timeout=3600)  # Cache for 1 hour
         return Response(converted)
 
 
